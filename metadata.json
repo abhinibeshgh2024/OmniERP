@@ -1,0 +1,6 @@
+{
+  "name": "OmniERP — Intelligent University Operating System",
+  "description": "Next-Generation University Operating System featuring a deterministic Natural Language Query Router, Constraint-Satisfaction Timetable & Exam Allocator, Predictive Early Warning Engine, OBE Compliance Generator, and a 20-Department Relational Dataset (200 Faculty, 300 Students).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
