@@ -1,6 +1,6 @@
 {
-  "name": "OmniERP — Intelligent University Operating System",
-  "description": "Next-Generation University Operating System featuring a deterministic Natural Language Query Router, Constraint-Satisfaction Timetable & Exam Allocator, Predictive Early Warning Engine, OBE Compliance Generator, and a 20-Department Relational Dataset (200 Faculty, 300 Students).",
+  "name": "Martinet — Usha Martin University ERP",
+  "description": "Enterprise University Operating System for Usha Martin University, Ranchi featuring role-based portals for Students, Faculty, HOD, and Admin, gated department booths, attendance ledger, examination grade transcripts, study materials, and HOD approval workflows.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -12,6 +12,7 @@ import {
   StudentRecord,
 } from '../data/datasetGenerator';
 import { LeaveApplication } from '../data/operationalStore';
+import { LivePipelineExecutionEvent } from '../services/pipelineOrchestrator';
 import { NLQRouterModule } from './NLQRouterModule';
 import { EarlyWarningModule } from './EarlyWarningModule';
 import { OBEComplianceModule } from './OBEComplianceModule';
@@ -30,6 +31,8 @@ interface AdminGovernancePortalProps {
     remarks: string
   ) => void;
   onExportFullJSON: () => void;
+  pipelineEvents?: LivePipelineExecutionEvent[];
+  onResetFactoryState?: () => void;
 }
 
 export const AdminGovernancePortal: React.FC<AdminGovernancePortalProps> = ({
@@ -40,6 +43,8 @@ export const AdminGovernancePortal: React.FC<AdminGovernancePortalProps> = ({
   onUpdateFeeStatus,
   onReviewLeave,
   onExportFullJSON,
+  pipelineEvents = [],
+  onResetFactoryState,
 }) => {
   const [adminSection, setAdminSection] = useState<
     | 'ALL_20_BOOTHS'
@@ -74,10 +79,10 @@ export const AdminGovernancePortal: React.FC<AdminGovernancePortalProps> = ({
       <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-bold text-slate-900">
-            Central Institute Administration & Multi-Booth Governance Portal
+            Usha Martin University, Ranchi — Central Administration & Multi-Booth Governance
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Supervise all 20 Academic Department Booths, 200 Faculty, and 300 Students, or launch intelligent ERP engines.
+            Supervise all 20 Academic Department Booths, 200 Faculty, and 300 Students, or launch intelligent Martinet ERP engines.
           </p>
         </div>
 
@@ -89,7 +94,7 @@ export const AdminGovernancePortal: React.FC<AdminGovernancePortalProps> = ({
               { id: 'NLQ_COMMAND_ROUTER', label: 'NLQ Command Router' },
               { id: 'EARLY_WARNING_ENGINE', label: 'Early Warning Engine' },
               { id: 'OBE_ACCREDITATION', label: 'OBE Compliance' },
-              { id: 'FASTAPI_AND_DATASET', label: 'FastAPI & JSON Dataset' },
+              { id: 'FASTAPI_AND_DATASET', label: 'Pipelines & Dataset' },
             ] as const
           ).map((item) => (
             <button
@@ -396,9 +401,14 @@ export const AdminGovernancePortal: React.FC<AdminGovernancePortalProps> = ({
       {/* SECTION 5: OBE COMPLIANCE */}
       {adminSection === 'OBE_ACCREDITATION' && <OBEComplianceModule db={db} />}
 
-      {/* SECTION 6: FASTAPI & DATASET */}
+      {/* SECTION 6: PIPELINES & DATASET */}
       {adminSection === 'FASTAPI_AND_DATASET' && (
-        <DatasetAndFastAPIModule db={db} onExportFullJSON={onExportFullJSON} />
+        <DatasetAndFastAPIModule
+          db={db}
+          onExportFullJSON={onExportFullJSON}
+          pipelineEvents={pipelineEvents}
+          onResetFactoryState={onResetFactoryState}
+        />
       )}
     </div>
   );

@@ -1,10 +1,14 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Download,
   Lock,
-  Unlock,
-  ShieldAlert,
+  Plus,
   Building2,
+  CheckCircle2,
+  Clock,
+  LogOut,
+  ShieldCheck,
+  ArrowRight,
 } from 'lucide-react';
 import {
   generateOmniERPDatabase,
@@ -22,7 +26,15 @@ import {
   DiscussionThread,
   AttendanceSessionRecord,
   CustomScheduledClass,
+  PortalEnrollmentRequest,
+  BoothEnrollmentRequest,
 } from './data/operationalStore';
+import { LivePipelineExecutionEvent } from './services/pipelineOrchestrator';
+import { AuthLoginAndEnrollPortal } from './components/AuthLoginAndEnrollPortal';
+import {
+  AddBoothModal,
+  HODApprovalConsole,
+} from './components/AddBoothAndHODApprovalModal';
 import { BoothAttendanceAndClasses } from './components/BoothAttendanceAndClasses';
 import { BoothExamsAndMarksheets } from './components/BoothExamsAndMarksheets';
 import { BoothStudyMaterialsAndLeaves } from './components/BoothStudyMaterialsAndLeaves';
@@ -34,91 +46,347 @@ type InstituteWorkspaceTab =
   | 'EXAMS_AND_MARKSHEETS'
   | 'MATERIALS_AND_LEAVES'
   | 'NOTICES_AND_DISCUSS'
-  | 'ADMIN_AND_BOOTHS';
+  | 'HOD_AND_ADMIN';
+
+const STORAGE_KEY = 'omnierp_v4_pipeline_state';
 
 export default function App() {
   const initialDb = useMemo(() => generateOmniERPDatabase(), []);
 
+  // Load persisted state from localStorage if available
+  const savedState = useMemo(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {
+      // Ignore storage parse error
+    }
+    return null;
+  }, []);
+
+  // Authentication Session State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
+    () => savedState?.isAuthenticated ?? false
+  );
+  const [role, setRole] = useState<UserRole>(() => savedState?.role || 'STUDENT');
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    departmentCode: string;
+  }>(
+    () =>
+      savedState?.currentUser || {
+        id: initialDb.students[0].student_id,
+        name: initialDb.students[0].full_name,
+        email: initialDb.students[0].email,
+        departmentCode: initialDb.students[0].department_code,
+      }
+  );
+
   // Live Stateful Institute Entities
-  const [studentsList, setStudentsList] = useState<StudentRecord[]>(() => initialDb.students);
-  const [studyMaterials, setStudyMaterials] = useState<StudyMaterialItem[]>(() =>
-    generateInitialStudyMaterials(initialDb)
+  const [studentsList, setStudentsList] = useState<StudentRecord[]>(
+    () => savedState?.studentsList || initialDb.students
   );
-  const [leaves, setLeaves] = useState<LeaveApplication[]>(() =>
-    generateInitialLeaves(initialDb)
+  const [studyMaterials, setStudyMaterials] = useState<StudyMaterialItem[]>(
+    () => savedState?.studyMaterials || generateInitialStudyMaterials(initialDb)
   );
-  const [notices, setNotices] = useState<PublicNoticeItem[]>(() =>
-    generateInitialNotices(initialDb)
+  const [leaves, setLeaves] = useState<LeaveApplication[]>(
+    () => savedState?.leaves || generateInitialLeaves(initialDb)
   );
-  const [discussions, setDiscussions] = useState<DiscussionThread[]>(() =>
-    generateInitialDiscussions(initialDb)
+  const [notices, setNotices] = useState<PublicNoticeItem[]>(
+    () => savedState?.notices || generateInitialNotices(initialDb)
   );
-  const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSessionRecord[]>([]);
-  const [customClasses, setCustomClasses] = useState<CustomScheduledClass[]>([]);
+  const [discussions, setDiscussions] = useState<DiscussionThread[]>(
+    () => savedState?.discussions || generateInitialDiscussions(initialDb)
+  );
+  const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSessionRecord[]>(
+    () => savedState?.attendanceSessions || []
+  );
+  const [customClasses, setCustomClasses] = useState<CustomScheduledClass[]>(
+    () => savedState?.customClasses || []
+  );
   const [markOverrides, setMarkOverrides] = useState<
     Record<string, { internal: number; external: number }>
-  >({});
+  >(() => savedState?.markOverrides || {});
 
-  // Role & Identity State
-  const [role, setRole] = useState<UserRole>('FACULTY');
-  const [loggedInStudentId, setLoggedInStudentId] = useState<string>(
-    initialDb.students[0].student_id
+  // HOD Approval Queues:
+  // 1. Portal Enrollment Requests (New Students not in the portal)
+  const [portalRequests, setPortalRequests] = useState<PortalEnrollmentRequest[]>(
+    () => savedState?.portalRequests || []
   );
-  const [loggedInFacultyId, setLoggedInFacultyId] = useState<string>(
-    initialDb.faculty[0].faculty_id
+  // 2. Booth Enrollment Requests ("+ Add Booth" -> Request goes to HOD -> Approved before booth entry)
+  const [boothRequests, setBoothRequests] = useState<BoothEnrollmentRequest[]>(
+    () => savedState?.boothRequests || []
   );
-  const [activeBoothCode, setActiveBoothCode] = useState<string>('CSE');
+
+  const [isAddBoothModalOpen, setIsAddBoothModalOpen] = useState<boolean>(false);
+  const [activeBoothCode, setActiveBoothCode] = useState<string>('');
   const [activeTab, setActiveTab] = useState<InstituteWorkspaceTab>('CLASSES_AND_ATTENDANCE');
-  const [boothAccessDeniedMsg, setBoothAccessDeniedMsg] = useState<string | null>(null);
+
+  const [pipelineEvents, setPipelineEvents] = useState<LivePipelineExecutionEvent[]>(
+    () =>
+      savedState?.pipelineEvents || [
+        {
+          event_id: 'EVT-INIT-001',
+          timestamp: '2026-10-12 08:00:00',
+          pipeline_id: 'PIPE-01',
+          pipeline_name: 'BoothAccessControlPipeline',
+          actor_role: 'HOD',
+          actor_name: initialDb.faculty[0].name,
+          booth_code: 'CSE',
+          action_summary:
+            'Initialized 20 Departmental Booths, HOD Enrollment Gatekeeper, 200 Faculty, and 300 Students.',
+          stages_executed: ['01.1 Actor Tokenizer', '01.2 HOD Gatekeeper', '01.3 Booth Projection'],
+          duration_ms: 1.12,
+          status: 'COMMITTED',
+        },
+      ]
+  );
+
+  // Persist state changes to localStorage automatically
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          isAuthenticated,
+          role,
+          currentUser,
+          studentsList,
+          studyMaterials,
+          leaves,
+          notices,
+          discussions,
+          attendanceSessions,
+          customClasses,
+          markOverrides,
+          portalRequests,
+          boothRequests,
+          pipelineEvents: pipelineEvents.slice(0, 40),
+        })
+      );
+    } catch {
+      // Ignore quota errors
+    }
+  }, [
+    isAuthenticated,
+    role,
+    currentUser,
+    studentsList,
+    studyMaterials,
+    leaves,
+    notices,
+    discussions,
+    attendanceSessions,
+    customClasses,
+    markOverrides,
+    portalRequests,
+    boothRequests,
+    pipelineEvents,
+  ]);
+
+  const recordPipelineEvent = (
+    pipelineId: string,
+    pipelineName: string,
+    boothCode: string,
+    actionSummary: string,
+    stages: string[],
+    status: 'COMMITTED' | 'BLOCKED_BY_GUARD' = 'COMMITTED'
+  ) => {
+    const newEvent: LivePipelineExecutionEvent = {
+      event_id: `EVT-${Date.now().toString().slice(-5)}`,
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      pipeline_id: pipelineId,
+      pipeline_name: pipelineName,
+      actor_role: role,
+      actor_name: currentUser.name,
+      booth_code: boothCode || 'GATEWAY',
+      action_summary: actionSummary,
+      stages_executed: stages,
+      duration_ms: Number((0.45 + Math.random() * 0.85).toFixed(2)),
+      status,
+    };
+    setPipelineEvents((prev) => [newEvent, ...prev.slice(0, 49)]);
+  };
+
+  // Compute approved booths for the currently logged-in user
+  // Remember user requirement: "don't show any booths in the portal instead there will be Add Booth option and list will appear to select booths and then on submitting enroll to booth, a request will go to HOD. And only after approval the entry is given to booth."
+  const userApprovedBoothCodes = useMemo(() => {
+    const approvedForUser = boothRequests
+      .filter(
+        (r) =>
+          (r.requester_email.toLowerCase() === currentUser.email.toLowerCase() ||
+            r.requester_id === currentUser.id) &&
+          r.status === 'APPROVED'
+      )
+      .map((r) => r.booth_department_code);
+    return Array.from(new Set(approvedForUser));
+  }, [boothRequests, currentUser.email, currentUser.id]);
+
+  const userPendingBoothRequests = useMemo(() => {
+    return boothRequests.filter(
+      (r) =>
+        (r.requester_email.toLowerCase() === currentUser.email.toLowerCase() ||
+          r.requester_id === currentUser.id) &&
+        r.status === 'PENDING_HOD_APPROVAL'
+    );
+  }, [boothRequests, currentUser.email, currentUser.id]);
+
+  // Keep activeBoothCode synced with userApprovedBoothCodes
+  useEffect(() => {
+    if (userApprovedBoothCodes.length > 0) {
+      if (!userApprovedBoothCodes.includes(activeBoothCode)) {
+        setActiveBoothCode(userApprovedBoothCodes[0]);
+      }
+    } else {
+      setActiveBoothCode('');
+    }
+  }, [userApprovedBoothCodes, activeBoothCode]);
+
+  const activeBoothDept = useMemo(() => {
+    if (!activeBoothCode) return null;
+    return (
+      initialDb.departments.find((d) => d.department_code === activeBoothCode) ||
+      null
+    );
+  }, [initialDb.departments, activeBoothCode]);
 
   const loggedInStudent = useMemo(
     () =>
-      studentsList.find((s) => s.student_id === loggedInStudentId) || studentsList[0],
-    [studentsList, loggedInStudentId]
+      studentsList.find(
+        (s) =>
+          s.student_id === currentUser.id ||
+          s.email.toLowerCase() === currentUser.email.toLowerCase()
+      ) || studentsList[0],
+    [studentsList, currentUser.id, currentUser.email]
   );
 
   const loggedInFaculty = useMemo(
     () =>
-      initialDb.faculty.find((f) => f.faculty_id === loggedInFacultyId) ||
-      initialDb.faculty[0],
-    [initialDb.faculty, loggedInFacultyId]
+      initialDb.faculty.find(
+        (f) =>
+          f.faculty_id === currentUser.id ||
+          f.email.toLowerCase() === currentUser.email.toLowerCase()
+      ) || initialDb.faculty[0],
+    [initialDb.faculty, currentUser.id, currentUser.email]
   );
 
-  // Enforce Student Booth Lock: When Role is STUDENT, active booth is ALWAYS their own department!
-  const effectiveBoothCode =
-    role === 'STUDENT' ? loggedInStudent.department_code : activeBoothCode;
+  // Handler: New Student submits Portal Enrollment Request (when not in portal)
+  const handleSubmitPortalEnrollment = (req: PortalEnrollmentRequest) => {
+    setPortalRequests((prev) => [req, ...prev]);
+    recordPipelineEvent(
+      'PIPE-01',
+      'BoothAccessControlPipeline',
+      req.department_code,
+      `New Student "${req.full_name}" (${req.email}, ${req.phone}) submitted Portal Enrollment Request — Routed to HOD (${req.department_code}).`,
+      ['01.1 Format Validator', '01.2 HOD Queue Dispatch']
+    );
+  };
 
-  const activeBoothDept = useMemo(
-    () =>
-      initialDb.departments.find((d) => d.department_code === effectiveBoothCode) ||
-      initialDb.departments[0],
-    [initialDb.departments, effectiveBoothCode]
-  );
+  // Handler: HOD approves/rejects a New Student Portal Enrollment Request
+  const handleReviewPortalRequest = (
+    reqId: string,
+    status: 'APPROVED' | 'REJECTED'
+  ) => {
+    const targetReq = portalRequests.find((r) => r.id === reqId);
+    setPortalRequests((prev) =>
+      prev.map((r) =>
+        r.id === reqId
+          ? { ...r, status, reviewed_by_hod: currentUser.name }
+          : r
+      )
+    );
 
-  const handleRoleSwitch = (nextRole: UserRole) => {
-    setRole(nextRole);
-    setBoothAccessDeniedMsg(null);
-    if (nextRole === 'STUDENT') {
-      setActiveBoothCode(loggedInStudent.department_code);
-      if (activeTab === 'ADMIN_AND_BOOTHS') {
-        setActiveTab('CLASSES_AND_ATTENDANCE');
+    if (targetReq && status === 'APPROVED') {
+      // Add the newly approved student to studentsList so they are now in the portal!
+      const alreadyExists = studentsList.some(
+        (s) => s.email.toLowerCase() === targetReq.email.toLowerCase()
+      );
+      if (!alreadyExists) {
+        const deptFaculty = initialDb.faculty.filter(
+          (f) => f.department_code === targetReq.department_code
+        );
+        const newStudentRecord: StudentRecord = {
+          student_id: targetReq.student_id_assigned,
+          full_name: targetReq.full_name,
+          department: targetReq.department_name,
+          department_code: targetReq.department_code,
+          current_semester: targetReq.semester,
+          cgpa: 7.85,
+          attendance_percentage: 86.0,
+          risk_status: false,
+          fee_payment_status: 'Paid',
+          continuous_eval_score: 80.0,
+          assignment_completion_rate: 90.0,
+          email: targetReq.email,
+          advisor_faculty_id: deptFaculty[0]?.faculty_id || 'FAC-CSE-001',
+          backlogs_count: 0,
+        };
+        setStudentsList((prev) => [newStudentRecord, ...prev]);
       }
     }
+
+    recordPipelineEvent(
+      'PIPE-01',
+      'BoothAccessControlPipeline',
+      targetReq?.department_code || 'CSE',
+      `HOD ${status} Student Portal Enrollment Request ${reqId} (${targetReq?.full_name}).`,
+      ['01.1 HOD Authority Check', '01.2 Student Roster Provisioning']
+    );
   };
 
-  const handleBoothClick = (targetDeptCode: string) => {
-    if (role === 'STUDENT' && targetDeptCode !== loggedInStudent.department_code) {
-      setBoothAccessDeniedMsg(
-        `Access Restricted: As a Student (${loggedInStudent.full_name} · ${loggedInStudent.student_id}), you are strictly locked to the ${loggedInStudent.department} (${loggedInStudent.department_code}) Booth. Switch to Faculty or Admin mode above to work across multiple Department Booths.`
-      );
-      setTimeout(() => setBoothAccessDeniedMsg(null), 5000);
-      return;
+  // Handler: User submits "+ Add Booth" Enrollment Request
+  const handleSubmitBoothRequest = (req: BoothEnrollmentRequest) => {
+    setBoothRequests((prev) => [req, ...prev]);
+    recordPipelineEvent(
+      'PIPE-01',
+      'BoothAccessControlPipeline',
+      req.booth_department_code,
+      `${req.requester_name} (${req.requester_role}) submitted "+ Add Booth" request for ${req.booth_department_code} Booth — Awaiting HOD Approval.`,
+      ['01.1 Format Validator', '01.2 HOD Booth Queue Dispatch']
+    );
+  };
+
+  // Handler: HOD approves/rejects a "+ Add Booth" Enrollment Request
+  const handleReviewBoothRequest = (
+    reqId: string,
+    status: 'APPROVED' | 'REJECTED'
+  ) => {
+    const targetReq = boothRequests.find((r) => r.id === reqId);
+    setBoothRequests((prev) =>
+      prev.map((r) =>
+        r.id === reqId
+          ? { ...r, status, reviewed_by_hod: currentUser.name }
+          : r
+      )
+    );
+    if (targetReq && status === 'APPROVED' && !activeBoothCode) {
+      setActiveBoothCode(targetReq.booth_department_code);
     }
-    setBoothAccessDeniedMsg(null);
-    setActiveBoothCode(targetDeptCode);
+    recordPipelineEvent(
+      'PIPE-01',
+      'BoothAccessControlPipeline',
+      targetReq?.booth_department_code || 'CSE',
+      `HOD ${status} Booth Enrollment Request ${reqId} for ${targetReq?.requester_name} -> ${targetReq?.booth_department_code} Booth.`,
+      ['01.1 HOD Approval Gate', '01.2 Booth Entry Unlocked']
+    );
   };
 
-  // Handler: Live Attendance Taking -> updates student attendance % and risk_status
+  // Quick helper to switch into HOD mode to approve requests effortlessly
+  const handleQuickSwitchToHOD = () => {
+    const hodFac = initialDb.faculty[0];
+    setRole('HOD');
+    setCurrentUser({
+      id: hodFac.faculty_id,
+      name: `${hodFac.name} (HOD)`,
+      email: hodFac.email,
+      departmentCode: hodFac.department_code,
+    });
+    setActiveTab('HOD_AND_ADMIN');
+  };
+
+  // Handler: Live Attendance Taking
   const handleUpdateStudentAttendance = (
     deptCode: string,
     courseCode: string,
@@ -126,7 +394,7 @@ export default function App() {
     absentIds: string[],
     lateIds: string[]
   ) => {
-    const courseObj = activeBoothDept.courses.find((c) => c.course_code === courseCode);
+    const courseObj = activeBoothDept?.courses.find((c) => c.course_code === courseCode);
     const newSession: AttendanceSessionRecord = {
       id: `ATT-${deptCode}-${Date.now().toString().slice(-4)}`,
       department_code: deptCode,
@@ -136,7 +404,7 @@ export default function App() {
       date: new Date().toISOString().slice(0, 10),
       time_slot: '09:00 - 10:00',
       marked_by_faculty_id: loggedInFaculty.faculty_id,
-      marked_by_faculty_name: role === 'FACULTY' ? loggedInFaculty.name : 'Institute Admin',
+      marked_by_faculty_name: currentUser.name,
       present_student_ids: presentIds,
       absent_student_ids: absentIds,
       late_student_ids: lateIds,
@@ -162,9 +430,16 @@ export default function App() {
         };
       })
     );
+
+    recordPipelineEvent(
+      'PIPE-02',
+      'AttendanceAndRiskPipeline',
+      deptCode,
+      `Committed roll-call for ${courseCode}: ${presentIds.length} Present, ${absentIds.length} Absent, ${lateIds.length} Late.`,
+      ['02.1 Roll-Call Ingestion', '02.2 Statutory Floor Check', '02.3 Persistent Commit']
+    );
   };
 
-  // Handler: Update Student Marks
   const handleUpdateMarkOverride = (
     studentId: string,
     courseCode: string,
@@ -175,19 +450,37 @@ export default function App() {
       ...prev,
       [`${studentId}_${courseCode}`]: { internal, external },
     }));
+    recordPipelineEvent(
+      'PIPE-04',
+      'GradebookAndTranscriptPipeline',
+      activeBoothCode || 'CSE',
+      `Updated marks for ${studentId} in ${courseCode} (Internal: ${internal}/40, End-Sem: ${external}/60).`,
+      ['04.1 Score Validator', '04.2 10-Point GPA Computer', '04.3 Transcript Sync']
+    );
   };
 
-  // Handler: Add Study Material
   const handleAddStudyMaterial = (item: StudyMaterialItem) => {
     setStudyMaterials((prev) => [item, ...prev]);
+    recordPipelineEvent(
+      'PIPE-05',
+      'CampusWorkflowPipeline',
+      item.department_code,
+      `Published study material "${item.title}" to ${item.department_code} Booth.`,
+      ['05.1 RBAC Schema Check', '05.2 Booth Repository Broadcast']
+    );
   };
 
-  // Handler: Submit Leave
   const handleSubmitLeave = (item: LeaveApplication) => {
     setLeaves((prev) => [item, ...prev]);
+    recordPipelineEvent(
+      'PIPE-05',
+      'CampusWorkflowPipeline',
+      item.department_code,
+      `Submitted ${item.leave_type} application for ${item.applicant_name}.`,
+      ['05.1 Leave Payload Check', '05.2 Advisor Queue Routing']
+    );
   };
 
-  // Handler: Review Leave (Approve/Reject)
   const handleReviewLeave = (
     leaveId: string,
     status: 'Approved' | 'Rejected',
@@ -208,17 +501,14 @@ export default function App() {
     );
   };
 
-  // Handler: Publish Notice
   const handlePublishNotice = (notice: PublicNoticeItem) => {
     setNotices((prev) => [notice, ...prev]);
   };
 
-  // Handler: Create Discussion Thread
   const handleCreateDiscussionThread = (thread: DiscussionThread) => {
     setDiscussions((prev) => [thread, ...prev]);
   };
 
-  // Handler: Reply to Discussion Thread
   const handleReplyToThread = (
     threadId: string,
     authorId: string,
@@ -248,7 +538,6 @@ export default function App() {
     );
   };
 
-  // Handler: Update Student Fee Status
   const handleUpdateFeeStatus = (
     studentId: string,
     newFeeStatus: StudentRecord['fee_payment_status']
@@ -258,6 +547,21 @@ export default function App() {
         s.student_id === studentId ? { ...s, fee_payment_status: newFeeStatus } : s
       )
     );
+  };
+
+  const handleResetFactoryState = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setStudentsList(initialDb.students);
+    setStudyMaterials(generateInitialStudyMaterials(initialDb));
+    setLeaves(generateInitialLeaves(initialDb));
+    setNotices(generateInitialNotices(initialDb));
+    setDiscussions(generateInitialDiscussions(initialDb));
+    setAttendanceSessions([]);
+    setCustomClasses([]);
+    setMarkOverrides({});
+    setPortalRequests([]);
+    setBoothRequests([]);
+    setActiveBoothCode('');
   };
 
   const handleExportFullJSON = () => {
@@ -271,33 +575,79 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'omnierp_database.json';
+    a.download = 'martinet_database.json';
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  // IF NOT AUTHENTICATED -> RENDER LOGIN & NEW STUDENT ENROLLMENT GATEWAY
+  if (!isAuthenticated) {
+    return (
+      <AuthLoginAndEnrollPortal
+        db={initialDb}
+        studentsList={studentsList}
+        portalRequests={portalRequests}
+        onSubmitPortalEnrollment={handleSubmitPortalEnrollment}
+        onLoginSuccess={(loggedInRole, identity) => {
+          setRole(loggedInRole);
+          setCurrentUser(identity);
+          setIsAuthenticated(true);
+          if (loggedInRole === 'HOD' || loggedInRole === 'ADMIN') {
+            setActiveTab('HOD_AND_ADMIN');
+          } else {
+            setActiveTab('CLASSES_AND_ATTENDANCE');
+          }
+          recordPipelineEvent(
+            'PIPE-01',
+            'BoothAccessControlPipeline',
+            identity.departmentCode,
+            `Authenticated ${loggedInRole} session for ${identity.name} (${identity.email}).`,
+            ['01.1 Credential Regex Gate', '01.2 Session Token Issued']
+          );
+        }}
+      />
+    );
+  }
+
+  const totalPendingHODApprovals =
+    portalRequests.filter((r) => r.status === 'PENDING_HOD_APPROVAL').length +
+    boothRequests.filter((r) => r.status === 'PENDING_HOD_APPROVAL').length;
 
   const navLinks: Array<{ id: InstituteWorkspaceTab; label: string }> = [
     { id: 'CLASSES_AND_ATTENDANCE', label: 'Classes & Attendance' },
     { id: 'EXAMS_AND_MARKSHEETS', label: 'Exams & Marksheets' },
     { id: 'MATERIALS_AND_LEAVES', label: 'Materials & Leaves' },
     { id: 'NOTICES_AND_DISCUSS', label: 'Notices & Discuss' },
-    { id: 'ADMIN_AND_BOOTHS', label: 'Admin & 20 Booths' },
+    ...(role !== 'STUDENT'
+      ? [
+          {
+            id: 'HOD_AND_ADMIN' as const,
+            label:
+              totalPendingHODApprovals > 0
+                ? `HOD & Admin (${totalPendingHODApprovals})`
+                : 'HOD & Admin',
+          },
+        ]
+      : []),
   ];
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A]">
       {/* Strict 3-Zone Top Bar Contract */}
       <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between gap-8">
-        {/* Zone 1: Single text element wordmark */}
+        {/* Zone 1: Single text element wordmark with university subtitle */}
         <a
           href="#top"
           onClick={(e) => {
             e.preventDefault();
             setActiveTab('CLASSES_AND_ATTENDANCE');
           }}
-          className="font-display text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0"
+          className="flex items-center gap-2 font-display text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0"
         >
-          OmniERP
+          <span>Martinet</span>
+          <span className="text-xs font-medium px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md">
+            Usha Martin University, Ranchi
+          </span>
         </a>
 
         {/* Zone 2: 5 concise single-line text navigation links */}
@@ -325,11 +675,11 @@ export default function App() {
         <div className="flex items-center gap-3 shrink-0">
           <button
             type="button"
-            onClick={handleExportFullJSON}
+            onClick={() => setIsAuthenticated(false)}
             className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export Dataset JSON</span>
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sign Out ({role})</span>
           </button>
         </div>
       </header>
@@ -352,272 +702,321 @@ export default function App() {
         ))}
       </div>
 
-      {/* Institute Role Switcher & 20-Department Booth Access Controller */}
+      {/* Active Session & "+ Add Booth" Enrollment Bar (No Booths Shown Until Enrolled & Approved by HOD!) */}
       <div className="bg-white border-b border-slate-200">
-        <div className="max-w-[1400px] mx-auto px-6 py-5 space-y-4">
+        <div className="max-w-[1400px] mx-auto px-6 py-4 space-y-3">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            {/* Role Mode Selector */}
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-xs font-semibold text-slate-600">Active Portal Role:</span>
-              <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
-                {(
-                  [
-                    { id: 'STUDENT', label: 'Student Portal (Locked to Own Booth)' },
-                    { id: 'FACULTY', label: 'Faculty Portal (Multi-Booth Access)' },
-                    { id: 'ADMIN', label: 'Admin Portal (All 20 Booths)' },
-                  ] as const
-                ).map((r) => (
+            <div className="text-xs text-slate-600">
+              <span>Signed in as:</span>{' '}
+              <span className="font-bold text-slate-900">{currentUser.name}</span>
+              <span className="mx-2">·</span>
+              <span className="font-mono text-slate-700">{currentUser.email}</span>
+              <span className="mx-2">·</span>
+              <span className="font-mono font-bold text-slate-900">Role: {role}</span>
+            </div>
+
+            {/* Role Governance: Students CANNOT switch roles */}
+            {role === 'STUDENT' ? (
+              <div className="flex items-center gap-2 text-xs">
+                <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-medium border border-slate-200">
+                  Student Portal · Role Locked to Student
+                </span>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-slate-500">Staff Perspective:</span>
+                {(['FACULTY', 'HOD', 'ADMIN'] as const).map((r) => (
                   <button
-                    key={r.id}
+                    key={r}
                     type="button"
-                    onClick={() => handleRoleSwitch(r.id)}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                      role === r.id
-                        ? 'bg-slate-900 text-white shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
+                    onClick={() => {
+                      if (r === 'HOD') {
+                        handleQuickSwitchToHOD();
+                      } else if (r === 'FACULTY') {
+                        const fac = initialDb.faculty[1];
+                        setRole('FACULTY');
+                        setCurrentUser({
+                          id: fac.faculty_id,
+                          name: fac.name,
+                          email: fac.email,
+                          departmentCode: fac.department_code,
+                        });
+                      } else {
+                        setRole('ADMIN');
+                        setCurrentUser({
+                          id: 'ADMIN-REG-001',
+                          name: 'Chief Institute Registrar (Admin)',
+                          email: 'registrar@ushamartin.edu.in',
+                          departmentCode: 'CSE',
+                        });
+                        setActiveTab('HOD_AND_ADMIN');
+                      }
+                    }}
+                    className={`px-2.5 py-1 rounded border font-semibold cursor-pointer ${
+                      role === r
+                        ? 'bg-slate-900 text-white border-slate-900'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
-                    {r.label}
+                    {r}
+                    {r === 'HOD' && totalPendingHODApprovals > 0
+                      ? ` (${totalPendingHODApprovals} Pending)`
+                      : ''}
                   </button>
                 ))}
               </div>
-            </div>
-
-            {/* Active Identity Selector */}
-            <div className="flex flex-wrap items-center gap-3 text-xs">
-              {role === 'STUDENT' && (
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-500 font-medium whitespace-nowrap">
-                    Logged-in Student:
-                  </span>
-                  <select
-                    value={loggedInStudent.student_id}
-                    onChange={(e) => {
-                      const nextStu = studentsList.find((s) => s.student_id === e.target.value);
-                      setLoggedInStudentId(e.target.value);
-                      if (nextStu) {
-                        setActiveBoothCode(nextStu.department_code);
-                      }
-                    }}
-                    className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-medium max-w-xs"
-                  >
-                    {studentsList.map((s) => (
-                      <option key={s.student_id} value={s.student_id}>
-                        {s.student_id} — {s.full_name} ({s.department_code} · Sem {s.current_semester})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {role === 'FACULTY' && (
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-500 font-medium whitespace-nowrap">
-                    Logged-in Faculty:
-                  </span>
-                  <select
-                    value={loggedInFaculty.faculty_id}
-                    onChange={(e) => {
-                      const nextFac = initialDb.faculty.find(
-                        (f) => f.faculty_id === e.target.value
-                      );
-                      setLoggedInFacultyId(e.target.value);
-                      if (nextFac) {
-                        setActiveBoothCode(nextFac.department_code);
-                      }
-                    }}
-                    className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-medium max-w-xs"
-                  >
-                    {initialDb.faculty.map((f) => (
-                      <option key={f.faculty_id} value={f.faculty_id}>
-                        {f.faculty_id} — {f.name} ({f.department_code})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {role === 'ADMIN' && (
-                <div className="text-slate-700 font-mono">
-                  Identity: <span className="font-bold text-slate-900">Chief Institute Registrar & Super Admin</span>
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
-          {/* 20-Department Booth Selector Strip with Student Booth Lock Enforcement */}
-          <div className="pt-3 border-t border-slate-100">
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <div className="flex items-center gap-2 text-xs">
+          {/* Booth Bar: Only Approved Booths + "+ Add Booth" Button */}
+          <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5 mr-1">
                 <Building2 className="w-3.5 h-3.5 text-slate-700" />
-                <span className="font-semibold text-slate-900">
-                  Departmental Booths (20 Academic Departments):
+                <span>My Enrolled Booths:</span>
+              </span>
+
+              {userApprovedBoothCodes.length === 0 ? (
+                <span className="text-xs text-slate-500 italic">
+                  No booths enrolled yet — Click "+ Add Booth" to select a booth and send an enrollment request to the HOD.
                 </span>
-                {role === 'STUDENT' ? (
-                  <span className="inline-flex items-center gap-1 text-amber-800 font-medium">
-                    <Lock className="w-3 h-3" />
-                    <span>
-                      Student Booth Lock Active — Restricted to {loggedInStudent.department_code} Booth ({loggedInStudent.department})
-                    </span>
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
-                    <Unlock className="w-3 h-3" />
-                    <span>
-                      Multi-Booth Access Enabled — Click any of the 20 Department Booths to operate
-                    </span>
-                  </span>
-                )}
-              </div>
-              <div className="text-xs font-mono text-slate-500 hidden sm:block">
-                Current Booth: <span className="font-bold text-slate-900">{activeBoothDept.department_name} ({activeBoothDept.department_code})</span>
-              </div>
+              ) : (
+                userApprovedBoothCodes.map((bCode) => {
+                  const isCurrent = activeBoothCode === bCode;
+                  return (
+                    <button
+                      key={bCode}
+                      type="button"
+                      onClick={() => setActiveBoothCode(bCode)}
+                      className={`px-3 py-1.5 text-xs font-mono font-bold rounded-lg border transition-colors flex items-center gap-1.5 cursor-pointer ${
+                        isCurrent
+                          ? 'bg-slate-900 text-white border-slate-900'
+                          : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>{bCode} Booth</span>
+                    </button>
+                  );
+                })
+              )}
+
+              {/* Pending Booth Requests Badge */}
+              {userPendingBoothRequests.map((pReq) => (
+                <span
+                  key={pReq.id}
+                  className="px-2.5 py-1 text-xs font-mono text-amber-800 bg-amber-50 border border-amber-200 rounded-md inline-flex items-center gap-1.5"
+                >
+                  <Clock className="w-3 h-3" />
+                  <span>{pReq.booth_department_code} Booth: Request to enroll is sent (Awaiting HOD)</span>
+                </span>
+              ))}
             </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-              {initialDb.departments.map((dept) => {
-                const isCurrentBooth = effectiveBoothCode === dept.department_code;
-                const isLockedOutForStudent =
-                  role === 'STUDENT' && dept.department_code !== loggedInStudent.department_code;
-
-                return (
-                  <button
-                    key={dept.department_code}
-                    type="button"
-                    onClick={() => handleBoothClick(dept.department_code)}
-                    title={`${dept.department_name} (${dept.department_code} Booth)`}
-                    className={`px-2.5 py-1.5 text-xs font-mono rounded-md border transition-colors whitespace-nowrap shrink-0 flex items-center gap-1 cursor-pointer ${
-                      isCurrentBooth
-                        ? 'bg-slate-900 text-white border-slate-900 font-bold'
-                        : isLockedOutForStudent
-                        ? 'bg-slate-50 text-slate-400 border-slate-200 opacity-60'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:text-slate-900 font-medium'
-                    }`}
-                  >
-                    {isLockedOutForStudent && <Lock className="w-2.5 h-2.5 shrink-0" />}
-                    <span>{dept.department_code}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {boothAccessDeniedMsg && (
-              <div className="mt-2.5 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center gap-2 font-medium">
-                <ShieldAlert className="w-4 h-4 text-amber-700 shrink-0" />
-                <span>{boothAccessDeniedMsg}</span>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={() => setIsAddBoothModalOpen(true)}
+              className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Booth</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Main Institute Operational Workspace */}
-      <main className="flex-1 max-w-[1400px] w-full mx-auto px-6 py-8">
-        {activeTab === 'CLASSES_AND_ATTENDANCE' && (
-          <BoothAttendanceAndClasses
-            db={{ ...initialDb, students: studentsList }}
-            activeBoothDept={activeBoothDept}
-            role={role}
-            loggedInStudent={loggedInStudent}
-            loggedInFaculty={loggedInFaculty}
-            studentsList={studentsList}
-            onUpdateStudentAttendance={handleUpdateStudentAttendance}
-            attendanceSessions={attendanceSessions}
-            customClasses={customClasses}
-            onAddCustomClass={(newItem) => setCustomClasses((prev) => [newItem, ...prev])}
+      {/* Add Booth Modal */}
+      <AddBoothModal
+        db={initialDb}
+        isOpen={isAddBoothModalOpen}
+        onClose={() => setIsAddBoothModalOpen(false)}
+        currentUser={{ ...currentUser, role }}
+        boothRequests={boothRequests}
+        onSubmitBoothRequest={handleSubmitBoothRequest}
+        onQuickSwitchToHOD={handleQuickSwitchToHOD}
+      />
+
+      {/* Main Workspace */}
+      <main className="flex-1 max-w-[1400px] w-full mx-auto px-6 py-8 space-y-8">
+        {/* When HOD or ADMIN is logged in, always show the HOD Approval Console at the top or in the HOD_AND_ADMIN tab */}
+        {(role === 'HOD' || role === 'ADMIN' || activeTab === 'HOD_AND_ADMIN') && (
+          <HODApprovalConsole
+            portalRequests={portalRequests}
+            boothRequests={boothRequests}
+            hodName={currentUser.name}
+            onReviewPortalRequest={handleReviewPortalRequest}
+            onReviewBoothRequest={handleReviewBoothRequest}
           />
         )}
 
-        {activeTab === 'EXAMS_AND_MARKSHEETS' && (
-          <BoothExamsAndMarksheets
-            activeBoothDept={activeBoothDept}
-            role={role}
-            loggedInStudent={loggedInStudent}
-            studentsList={studentsList}
-            markOverrides={markOverrides}
-            onUpdateMarkOverride={handleUpdateMarkOverride}
-          />
-        )}
+        {/* If user is on a Booth operational tab (Classes, Exams, Materials, Notices) AND has NOT yet been approved for any booth by the HOD, block booth entry! */}
+        {activeTab !== 'HOD_AND_ADMIN' && !activeBoothDept ? (
+          <div className="bg-white border border-slate-200 rounded-xl p-10 text-center max-w-2xl mx-auto space-y-5">
+            <Building2 className="w-10 h-10 text-slate-800 mx-auto" />
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-slate-900">
+                {userPendingBoothRequests.length > 0
+                  ? 'Request to enroll is sent — Awaiting HOD Approval for Booth Entry'
+                  : 'No Department Booth Enrolled Yet'}
+              </h2>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {userPendingBoothRequests.length > 0
+                  ? `Your request to enroll in the ${userPendingBoothRequests
+                      .map((r) => `${r.booth_department_name} (${r.booth_department_code})`)
+                      .join(', ')} Booth has been sent to the Head of Department (HOD). Entry to the booth workspace (Classes, Attendance, Exams, Marksheets, Study Materials, Leaves, Notices & Discussion) is granted only after HOD approval.`
+                  : 'Departmental booths are hidden by default. Click "Add Booth" below to select your department booth from the list and submit an enrollment request to the HOD.'}
+              </p>
+            </div>
 
-        {activeTab === 'MATERIALS_AND_LEAVES' && (
-          <BoothStudyMaterialsAndLeaves
-            activeBoothDept={activeBoothDept}
-            role={role}
-            loggedInStudent={loggedInStudent}
-            loggedInFaculty={loggedInFaculty}
-            studyMaterials={studyMaterials}
-            onAddStudyMaterial={handleAddStudyMaterial}
-            leaves={leaves}
-            onSubmitLeave={handleSubmitLeave}
-            onReviewLeave={handleReviewLeave}
-          />
-        )}
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsAddBoothModalOpen(true)}
+                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg flex items-center gap-2 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Booth & Submit Request to HOD</span>
+              </button>
 
-        {activeTab === 'NOTICES_AND_DISCUSS' && (
-          <BoothNoticesAndDiscussion
-            db={{ ...initialDb, students: studentsList }}
-            activeBoothDept={activeBoothDept}
-            role={role}
-            loggedInStudent={loggedInStudent}
-            loggedInFaculty={loggedInFaculty}
-            notices={notices}
-            onPublishNotice={handlePublishNotice}
-            discussions={discussions}
-            onCreateDiscussionThread={handleCreateDiscussionThread}
-            onReplyToThread={handleReplyToThread}
-          />
-        )}
-
-        {activeTab === 'ADMIN_AND_BOOTHS' && (
-          <div>
-            {role === 'STUDENT' ? (
-              <div className="bg-white border border-slate-200 rounded-xl p-8 text-center space-y-4">
-                <Lock className="w-8 h-8 text-slate-700 mx-auto" />
-                <h2 className="text-lg font-bold text-slate-900">
-                  Central Admin & Multi-Booth Governance Restricted to Faculty & Institute Admins
-                </h2>
-                <p className="text-xs text-slate-600 max-w-xl mx-auto leading-relaxed">
-                  You are currently viewing OmniERP as a Student ({loggedInStudent.full_name} ·{' '}
-                  {loggedInStudent.student_id}) locked to the{' '}
-                  <strong>
-                    {loggedInStudent.department} ({loggedInStudent.department_code}) Booth
-                  </strong>
-                  . Switch your role to <strong>Faculty Portal</strong> or{' '}
-                  <strong>Admin Portal</strong> in the role bar above to manage all 20 Department
-                  Booths, fee registries, and institute-wide approvals.
-                </p>
-                <div className="flex items-center justify-center gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => handleRoleSwitch('ADMIN')}
-                    className="px-4 py-2 bg-slate-900 text-white text-xs font-semibold rounded-lg cursor-pointer"
-                  >
-                    Switch to Institute Admin Portal
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('CLASSES_AND_ATTENDANCE')}
-                    className="px-4 py-2 bg-slate-100 text-slate-800 text-xs font-semibold rounded-lg cursor-pointer"
-                  >
-                    Return to My {loggedInStudent.department_code} Booth
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <AdminGovernancePortal
+              {userPendingBoothRequests.length > 0 && role !== 'STUDENT' && (
+                <button
+                  type="button"
+                  onClick={handleQuickSwitchToHOD}
+                  className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>Switch to HOD Account to Approve Booth Entry</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            {activeTab === 'CLASSES_AND_ATTENDANCE' && activeBoothDept && (
+              <BoothAttendanceAndClasses
                 db={{ ...initialDb, students: studentsList }}
+                activeBoothDept={activeBoothDept}
+                role={role === 'HOD' ? 'FACULTY' : role}
+                loggedInStudent={loggedInStudent}
+                loggedInFaculty={loggedInFaculty}
                 studentsList={studentsList}
-                leaves={leaves}
-                onSelectBooth={(deptCode) => {
-                  setActiveBoothCode(deptCode);
-                  setActiveTab('CLASSES_AND_ATTENDANCE');
-                }}
-                onUpdateFeeStatus={handleUpdateFeeStatus}
-                onReviewLeave={handleReviewLeave}
-                onExportFullJSON={handleExportFullJSON}
+                onUpdateStudentAttendance={handleUpdateStudentAttendance}
+                attendanceSessions={attendanceSessions}
+                customClasses={customClasses}
+                onAddCustomClass={(newItem) =>
+                  setCustomClasses((prev) => [newItem, ...prev])
+                }
               />
             )}
-          </div>
+
+            {activeTab === 'EXAMS_AND_MARKSHEETS' && activeBoothDept && (
+              <BoothExamsAndMarksheets
+                activeBoothDept={activeBoothDept}
+                role={role === 'HOD' ? 'FACULTY' : role}
+                loggedInStudent={loggedInStudent}
+                studentsList={studentsList}
+                markOverrides={markOverrides}
+                onUpdateMarkOverride={handleUpdateMarkOverride}
+              />
+            )}
+
+            {activeTab === 'MATERIALS_AND_LEAVES' && activeBoothDept && (
+              <BoothStudyMaterialsAndLeaves
+                activeBoothDept={activeBoothDept}
+                role={role === 'HOD' ? 'FACULTY' : role}
+                loggedInStudent={loggedInStudent}
+                loggedInFaculty={loggedInFaculty}
+                studyMaterials={studyMaterials}
+                onAddStudyMaterial={handleAddStudyMaterial}
+                leaves={leaves}
+                onSubmitLeave={handleSubmitLeave}
+                onReviewLeave={handleReviewLeave}
+              />
+            )}
+
+            {activeTab === 'NOTICES_AND_DISCUSS' && activeBoothDept && (
+              <BoothNoticesAndDiscussion
+                db={{ ...initialDb, students: studentsList }}
+                activeBoothDept={activeBoothDept}
+                role={role === 'HOD' ? 'FACULTY' : role}
+                loggedInStudent={loggedInStudent}
+                loggedInFaculty={loggedInFaculty}
+                notices={notices}
+                onPublishNotice={handlePublishNotice}
+                discussions={discussions}
+                onCreateDiscussionThread={handleCreateDiscussionThread}
+                onReplyToThread={handleReplyToThread}
+              />
+            )}
+
+            {activeTab === 'HOD_AND_ADMIN' && (
+              <div>
+                {role === 'STUDENT' ? (
+                  <div className="bg-white border border-slate-200 rounded-xl p-8 text-center space-y-4">
+                    <Lock className="w-8 h-8 text-slate-700 mx-auto" />
+                    <h2 className="text-lg font-bold text-slate-900">
+                      Restricted Access — HOD & University Governance Console
+                    </h2>
+                    <p className="text-xs text-slate-600 max-w-xl mx-auto leading-relaxed">
+                      You are signed in with a Student account ({currentUser.name}). Students can only access student contents and cannot access administrative or HOD controls.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('CLASSES_AND_ATTENDANCE')}
+                      className="px-4 py-2 bg-slate-900 text-white text-xs font-semibold rounded-lg cursor-pointer"
+                    >
+                      Return to Student Portal
+                    </button>
+                  </div>
+                ) : (
+                  <AdminGovernancePortal
+                    db={{ ...initialDb, students: studentsList }}
+                    studentsList={studentsList}
+                    leaves={leaves}
+                    onSelectBooth={(deptCode) => {
+                      // Ensure HOD/Admin has booth approved if they click into it from Admin Directory
+                      const alreadyApproved = boothRequests.some(
+                        (r) =>
+                          r.requester_email.toLowerCase() ===
+                            currentUser.email.toLowerCase() &&
+                          r.booth_department_code === deptCode &&
+                          r.status === 'APPROVED'
+                      );
+                      if (!alreadyApproved) {
+                        const deptObj = initialDb.departments.find(
+                          (d) => d.department_code === deptCode
+                        );
+                        if (deptObj) {
+                          setBoothRequests((prev) => [
+                            {
+                              id: `BTH-AUTO-${Date.now().toString().slice(-4)}`,
+                              requester_id: currentUser.id,
+                              requester_name: currentUser.name,
+                              requester_email: currentUser.email,
+                              requester_role: role,
+                              booth_department_code: deptObj.department_code,
+                              booth_department_name: deptObj.department_name,
+                              status: 'APPROVED',
+                              submitted_at: '2026-10-12',
+                              reviewed_by_hod: currentUser.name,
+                            },
+                            ...prev,
+                          ]);
+                        }
+                      }
+                      setActiveBoothCode(deptCode);
+                      setActiveTab('CLASSES_AND_ATTENDANCE');
+                    }}
+                    onUpdateFeeStatus={handleUpdateFeeStatus}
+                    onReviewLeave={handleReviewLeave}
+                    onExportFullJSON={handleExportFullJSON}
+                    pipelineEvents={pipelineEvents}
+                    onResetFactoryState={handleResetFactoryState}
+                  />
+                )}
+              </div>
+            )}
+          </>
         )}
       </main>
 
@@ -625,18 +1024,15 @@ export default function App() {
       <footer className="bg-white border-t border-slate-200 mt-12">
         <div className="max-w-[1400px] mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div>
-            OmniERP Institute Operating System · Active Booth: {activeBoothDept.department_name} ({activeBoothDept.department_code}) · Role: {role}
+            Martinet ERP · Usha Martin University, Ranchi · Signed in as {currentUser.name} ({role}) · Enrolled Booths: {userApprovedBoothCodes.length}
           </div>
           <div className="flex items-center gap-4">
             <button
               type="button"
-              onClick={() => {
-                handleRoleSwitch('ADMIN');
-                setActiveTab('ADMIN_AND_BOOTHS');
-              }}
+              onClick={() => setIsAddBoothModalOpen(true)}
               className="hover:text-slate-900 underline underline-offset-4 cursor-pointer"
             >
-              Open Central Admin & 20-Booth Directory
+              + Add Booth
             </button>
             <span aria-hidden="true">·</span>
             <button
@@ -644,7 +1040,7 @@ export default function App() {
               onClick={handleExportFullJSON}
               className="hover:text-slate-900 underline underline-offset-4 cursor-pointer"
             >
-              Download omnierp_database.json
+              Download martinet_database.json
             </button>
           </div>
         </div>

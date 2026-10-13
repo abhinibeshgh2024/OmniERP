@@ -1,6 +1,34 @@
 import { OmniERPDatabase, StudentRecord, FacultyRecord, DepartmentMetadata } from './datasetGenerator';
 
-export type UserRole = 'STUDENT' | 'FACULTY' | 'ADMIN';
+export type UserRole = 'STUDENT' | 'FACULTY' | 'HOD' | 'ADMIN';
+
+export interface PortalEnrollmentRequest {
+  id: string;
+  student_id_assigned: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  password: string;
+  department_code: string;
+  department_name: string;
+  semester: number;
+  status: 'PENDING_HOD_APPROVAL' | 'APPROVED' | 'REJECTED';
+  submitted_at: string;
+  reviewed_by_hod?: string;
+}
+
+export interface BoothEnrollmentRequest {
+  id: string;
+  requester_id: string;
+  requester_name: string;
+  requester_email: string;
+  requester_role: UserRole;
+  booth_department_code: string;
+  booth_department_name: string;
+  status: 'PENDING_HOD_APPROVAL' | 'APPROVED' | 'REJECTED';
+  submitted_at: string;
+  reviewed_by_hod?: string;
+}
 
 export interface StudyMaterialItem {
   id: string;

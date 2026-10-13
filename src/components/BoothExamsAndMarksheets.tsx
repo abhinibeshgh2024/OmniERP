@@ -153,9 +153,9 @@ export const BoothExamsAndMarksheets: React.FC<BoothExamsAndMarksheetsProps> = (
 <body>
   <div class="sheet">
     <div class="header">
-      <h1>OmniERP National Institute of Science, Law & Humanities</h1>
-      <p>Official Statement of Marks & Semester Grade Transcript (${activeBoothDept.department_name})</p>
-      <p>Serial No: OMNI-MS-2026-${targetStudent.student_id.slice(-4)} · Issued Date: October 11, 2026</p>
+      <h1>Usha Martin University, Ranchi</h1>
+      <p>Martinet ERP — Official Statement of Marks & Semester Grade Transcript (${activeBoothDept.department_name})</p>
+      <p>Serial No: UMU-MS-2026-${targetStudent.student_id.slice(-4)} · Issued Date: October 12, 2026</p>
     </div>
     <div class="meta-grid">
       <div><strong>Student Name:</strong> ${targetStudent.full_name}</div>
@@ -320,13 +320,13 @@ export const BoothExamsAndMarksheets: React.FC<BoothExamsAndMarksheetsProps> = (
         <div className="bg-slate-900 text-white px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="text-xs font-mono text-slate-300">
-              OFFICIAL STATEMENT OF MARKS · SERIAL NO: OMNI-MS-2026-{targetStudent.student_id.slice(-4)}
+              OFFICIAL STATEMENT OF MARKS · SERIAL NO: UMU-MS-2026-{targetStudent.student_id.slice(-4)}
             </div>
             <h3 className="text-lg font-bold tracking-tight mt-0.5">
-              OmniERP National Institute of Science, Law & Humanities
+              Usha Martin University, Ranchi
             </h3>
             <p className="text-xs text-slate-300 mt-0.5">
-              {activeBoothDept.department_name} ({activeBoothDept.school_block})
+              Martinet ERP · {activeBoothDept.department_name} ({activeBoothDept.school_block})
             </p>
           </div>
           <div className="text-left sm:text-right font-mono tabular-nums">

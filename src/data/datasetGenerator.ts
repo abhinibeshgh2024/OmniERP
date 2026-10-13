@@ -678,7 +678,7 @@ export function generateOmniERPDatabase(): OmniERPDatabase {
         department_code: spec.code,
         academic_title: academicTitle,
         specialized_research_domain: spec.domains[f],
-        email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}.${spec.code.toLowerCase()}@omnierp.univ.edu`,
+        email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}.${spec.code.toLowerCase()}@umu.ac.in`,
         office_hours: `${daysPairs[f % daysPairs.length]} (${spec.code}-${101 + f})`,
         office_room: `${spec.code}-FB-${201 + f}`,
         assigned_courses: uniqueCourses.map(c => c.code),
@@ -853,7 +853,7 @@ export function generateOmniERPDatabase(): OmniERPDatabase {
         fee_payment_status: feeStatus,
         continuous_eval_score: continuousEval,
         assignment_completion_rate: assignmentRate,
-        email: `${fName.toLowerCase()}.${lName.toLowerCase()}${globalStudentIdx}@student.omnierp.univ.edu`,
+        email: `${fName.toLowerCase()}.${lName.toLowerCase()}${globalStudentIdx}@umu.ac.in`,
         advisor_faculty_id: advisor.faculty_id,
         backlogs_count: backlogs,
       });
@@ -866,9 +866,9 @@ export function generateOmniERPDatabase(): OmniERPDatabase {
   const totalClassrooms = departments.reduce((acc, d) => acc + d.classrooms.length, 0);
 
   return {
-    schema_version: '2.4.0-enterprise',
-    generated_at: '2026-10-11T08:00:00Z',
-    institution: 'OmniERP National Institute of Science, Law & Humanities',
+    schema_version: '3.0.0-martinet',
+    generated_at: '2026-10-12T08:00:00Z',
+    institution: 'Usha Martin University, Ranchi',
     summary: {
       total_departments: departments.length,
       total_faculty: faculty.length,

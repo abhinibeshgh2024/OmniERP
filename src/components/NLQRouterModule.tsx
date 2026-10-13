@@ -59,28 +59,11 @@ export const NLQRouterModule: React.FC<NLQRouterModuleProps> = ({ db }) => {
   const [copiedEmailId, setCopiedEmailId] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
 
-  const handleRunQuery = async (customQuery?: string) => {
+  const handleRunQuery = (customQuery?: string) => {
     const q = (customQuery ?? queryInput).trim();
     if (!q) return;
     setIsExecuting(true);
     if (customQuery) setQueryInput(customQuery);
-
-    try {
-      const response = await fetch('/api/v1/nlq/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q }),
-      });
-      if (response.ok) {
-        const data: NLQExecutionResult = await response.json();
-        setResult(data);
-        setSelectedEmail(data.drafted_emails?.[0] || null);
-        setIsExecuting(false);
-        return;
-      }
-    } catch {
-      // Fallback to local deterministic engine if offline
-    }
 
     const localData = executeNLQPipeline(db, q);
     setResult(localData);
@@ -108,7 +91,7 @@ export const NLQRouterModule: React.FC<NLQRouterModuleProps> = ({ db }) => {
             </p>
           </div>
           <div className="text-xs font-mono text-slate-500 tabular-nums shrink-0">
-            <span>POST /api/v1/nlq/execute</span>
+            <span>Pipeline #05: NLQDirectivePipeline</span>
             <span className="mx-2" aria-hidden="true">·</span>
             <span>Zero-API-Key Local AST</span>
           </div>

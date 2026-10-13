@@ -78,7 +78,8 @@ export const BoothStudyMaterialsAndLeaves: React.FC<BoothStudyMaterialsAndLeaves
   }, [leaves, activeBoothDept.department_code, role]);
 
   const handleDownloadStudyMaterial = (mat: StudyMaterialItem) => {
-    const content = `OMNIERP UNIVERSITY — DEPARTMENT OF ${activeBoothDept.department_name.toUpperCase()}
+    const content = `USHA MARTIN UNIVERSITY, RANCHI — MARTINET ERP
+DEPARTMENT OF ${activeBoothDept.department_name.toUpperCase()}
 ================================================================================
 COURSE: ${mat.course_code} — ${mat.course_title} (Semester ${mat.semester})
 RESOURCE TITLE: ${mat.title}

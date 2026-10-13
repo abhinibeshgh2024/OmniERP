@@ -1,60 +1,40 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  Database,
-  Code2,
   Download,
   Copy,
   Check,
   Search,
   AlertTriangle,
   CheckCircle2,
+  RotateCcw,
+  Layers,
 } from 'lucide-react';
 import { OmniERPDatabase } from '../data/datasetGenerator';
+import {
+  OMNIERP_PIPELINE_SPECS,
+  LivePipelineExecutionEvent,
+} from '../services/pipelineOrchestrator';
 
 interface DatasetAndFastAPIModuleProps {
   db: OmniERPDatabase;
   onExportFullJSON: () => void;
+  pipelineEvents?: LivePipelineExecutionEvent[];
+  onResetFactoryState?: () => void;
 }
-
-interface PythonSourceFile {
-  path: string;
-  title: string;
-  content: string;
-}
-
-const FALLBACK_PYTHON_FILES: PythonSourceFile[] = [
-  {
-    path: 'backend/main.py',
-    title: 'main.py — FastAPI Entrypoint & REST Router',
-    content: `# FastAPI Entrypoint loaded via /api/v1/python-files`,
-  },
-];
 
 export const DatasetAndFastAPIModule: React.FC<DatasetAndFastAPIModuleProps> = ({
   db,
   onExportFullJSON,
+  pipelineEvents = [],
+  onResetFactoryState,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'STUDENTS_300' | 'FACULTY_200' | 'DEPARTMENTS_20' | 'RAW_JSON' | 'PYTHON_FASTAPI'
-  >('PYTHON_FASTAPI');
+    'PIPELINE_ARCHITECTURE' | 'FACULTY_200' | 'STUDENTS_300' | 'DEPARTMENTS_20' | 'RAW_JSON'
+  >('PIPELINE_ARCHITECTURE');
   const [selectedDept, setSelectedDept] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [pythonFiles, setPythonFiles] = useState<PythonSourceFile[]>(FALLBACK_PYTHON_FILES);
-  const [activeFileIndex, setActiveFileIndex] = useState<number>(0);
+  const [activePipelineIdx, setActivePipelineIdx] = useState<number>(0);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
-
-  useEffect(() => {
-    fetch('/api/v1/python-files')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.files?.length) {
-          setPythonFiles(data.files);
-        }
-      })
-      .catch(() => {
-        // Keep fallback if offline
-      });
-  }, []);
 
   const filteredStudents = useMemo(() => {
     return db.students.filter((s) => {
@@ -102,22 +82,13 @@ export const DatasetAndFastAPIModule: React.FC<DatasetAndFastAPIModuleProps> = (
     });
   }, [db.departments, selectedDept, searchQuery]);
 
-  const currentPythonFile = pythonFiles[activeFileIndex] || pythonFiles[0];
+  const currentPipeline =
+    OMNIERP_PIPELINE_SPECS[activePipelineIdx] || OMNIERP_PIPELINE_SPECS[0];
 
   const handleCopyContent = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2000);
-  };
-
-  const handleDownloadPythonFile = (file: PythonSourceFile) => {
-    const blob = new Blob([file.content], { type: 'text/x-python;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = file.path.split('/').pop() || 'module.py';
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   const jsonPreviewText = useMemo(() => {
@@ -140,13 +111,23 @@ export const DatasetAndFastAPIModule: React.FC<DatasetAndFastAPIModuleProps> = (
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-5 border-b border-slate-200">
           <div>
             <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-              05. Python FastAPI Architecture & Relational JSON Dataset (200 Faculty · 300 Students)
+              05. Deterministic Pipeline Engine & Relational Dataset (200 Faculty · 300 Students)
             </h2>
             <p className="text-sm text-slate-600 mt-1">
-              Inspect, filter, and download the complete modular Python (FastAPI + Pydantic v2) backend codebase and the 20-department relational dataset (`omnierp_database.json`).
+              100% pure pipeline architecture with zero external API frameworks or API keys. Deploys statically on Vercel with full browser-persisted relational state across all 20 Department Booths.
             </p>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {onResetFactoryState && (
+              <button
+                type="button"
+                onClick={onResetFactoryState}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset State to Factory Seed</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={onExportFullJSON}
@@ -163,7 +144,7 @@ export const DatasetAndFastAPIModule: React.FC<DatasetAndFastAPIModuleProps> = (
           <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-lg">
             {(
               [
-                { id: 'PYTHON_FASTAPI', label: 'Python FastAPI Modules (7 Files)' },
+                { id: 'PIPELINE_ARCHITECTURE', label: '6-Pipeline Engine & Audit Log' },
                 { id: 'FACULTY_200', label: '200 Faculty Roster (10/Dept)' },
                 { id: 'STUDENTS_300', label: '300 Student Records' },
                 { id: 'DEPARTMENTS_20', label: '20 Departments & Rooms' },
@@ -185,7 +166,7 @@ export const DatasetAndFastAPIModule: React.FC<DatasetAndFastAPIModuleProps> = (
             ))}
           </div>
 
-          {activeTab !== 'PYTHON_FASTAPI' && (
+          {activeTab !== 'PIPELINE_ARCHITECTURE' && (
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <div className="relative w-full sm:w-56">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -215,87 +196,155 @@ export const DatasetAndFastAPIModule: React.FC<DatasetAndFastAPIModuleProps> = (
         </div>
       </section>
 
-      {/* TAB 1: PYTHON FASTAPI MODULAR CODEBASE */}
-      {activeTab === 'PYTHON_FASTAPI' && (
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className="lg:col-span-4 bg-white border border-slate-200 rounded-xl p-5 space-y-4">
-            <div>
-              <h3 className="text-sm font-semibold text-slate-900">
-                Modular FastAPI Architecture
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Zero external paid dependencies. Run locally with <code className="font-mono text-slate-800">uvicorn main:app --reload</code>.
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              {pythonFiles.map((file, idx) => (
-                <button
-                  key={file.path}
-                  type="button"
-                  onClick={() => setActiveFileIndex(idx)}
-                  className={`w-full text-left px-3.5 py-2.5 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer ${
-                    activeFileIndex === idx
-                      ? 'bg-slate-900 text-white font-semibold'
-                      : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <span className="font-mono truncate">{file.path}</span>
-                  <Code2 className="w-3.5 h-3.5 shrink-0 ml-2 opacity-75" />
-                </button>
-              ))}
-            </div>
-
-            <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-2">
-              <div className="font-semibold text-slate-900">Local Execution Pipeline:</div>
-              <pre className="font-mono text-[11px] text-slate-700 overflow-x-auto leading-relaxed">
-{`pip install -r backend/requirements.txt
-uvicorn main:app --app-dir backend --port 8000`}
-              </pre>
-            </div>
-          </div>
-
-          <div className="lg:col-span-8 bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+      {/* TAB 1: DETERMINISTIC 6-PIPELINE ENGINE & AUDIT LOG */}
+      {activeTab === 'PIPELINE_ARCHITECTURE' && (
+        <div className="space-y-6">
+          <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-4 bg-white border border-slate-200 rounded-xl p-5 space-y-4">
               <div>
-                <div className="font-mono text-xs font-bold text-slate-900">
-                  {currentPythonFile.path}
-                </div>
-                <div className="text-xs text-slate-500">{currentPythonFile.title}</div>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Core Deterministic Pipelines (Zero External APIs)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Select any pipeline below to inspect its deterministic transformation stages and invariants.
+                </p>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleCopyContent(currentPythonFile.content)}
-                  className="px-3 py-1.5 text-xs font-medium bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 rounded-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  {copiedCode ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copy Python Code</span>
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDownloadPythonFile(currentPythonFile)}
-                  className="px-3 py-1.5 text-xs font-medium bg-slate-900 text-white hover:bg-slate-800 rounded-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download .py</span>
-                </button>
+
+              <div className="space-y-1.5">
+                {OMNIERP_PIPELINE_SPECS.map((pipe, idx) => (
+                  <button
+                    key={pipe.pipeline_id}
+                    type="button"
+                    onClick={() => setActivePipelineIdx(idx)}
+                    className={`w-full text-left px-3.5 py-2.5 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer ${
+                      activePipelineIdx === idx
+                        ? 'bg-slate-900 text-white font-semibold'
+                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-mono">{pipe.pipeline_id} · {pipe.name}</div>
+                      <div className={`text-[11px] mt-0.5 ${activePipelineIdx === idx ? 'text-slate-300' : 'text-slate-500'}`}>
+                        {pipe.subsystem}
+                      </div>
+                    </div>
+                    <Layers className="w-3.5 h-3.5 shrink-0 ml-2 opacity-75" />
+                  </button>
+                ))}
               </div>
             </div>
-            <pre className="p-6 text-xs font-mono text-slate-800 bg-white overflow-x-auto max-h-[640px] overflow-y-auto leading-relaxed">
-              {currentPythonFile.content}
-            </pre>
-          </div>
-        </section>
+
+            <div className="lg:col-span-8 bg-white border border-slate-200 rounded-xl p-6 space-y-5">
+              <div className="pb-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-xs font-mono font-bold text-slate-900">
+                    {currentPipeline.pipeline_id} — {currentPipeline.name}
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900 mt-0.5">
+                    {currentPipeline.subsystem}
+                  </h3>
+                  <p className="text-xs text-slate-600 mt-1">{currentPipeline.description}</p>
+                </div>
+                <span className="text-xs font-mono text-emerald-700 font-semibold">
+                  Vercel Static SPA Compatible
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                {currentPipeline.stages.map((st) => (
+                  <div
+                    key={st.stage_id}
+                    className="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-2 text-xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-slate-900">
+                        Stage {st.stage_id}: {st.stage_name}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>{st.invariant_verified}</span>
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                      <div className="p-2.5 bg-white rounded border border-slate-200">
+                        <div className="text-slate-500 text-[11px]">Input Schema Contract</div>
+                        <div className="font-mono text-slate-800 mt-0.5">{st.input_contract}</div>
+                      </div>
+                      <div className="p-2.5 bg-white rounded border border-slate-200">
+                        <div className="text-slate-500 text-[11px]">Output Schema Contract</div>
+                        <div className="font-mono text-slate-800 mt-0.5">{st.output_contract}</div>
+                      </div>
+                    </div>
+                    <div className="text-slate-700 pt-1">
+                      <span className="font-semibold text-slate-900">Transformation:</span>{' '}
+                      {st.transformation_logic}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Live Pipeline Execution Audit Log */}
+          <section className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-slate-900">
+                  Live Pipeline Execution Ledger ({pipelineEvents.length} recorded transactions)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Every attendance roll-call, grade edit, leave decision, notice broadcast, and booth access check is recorded here in real time.
+                </p>
+              </div>
+            </div>
+            <div className="overflow-x-auto max-h-[380px] overflow-y-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 text-slate-600">
+                  <tr>
+                    <th className="py-2.5 px-4">Event ID & Time</th>
+                    <th className="py-2.5 px-4">Pipeline</th>
+                    <th className="py-2.5 px-4">Actor & Booth</th>
+                    <th className="py-2.5 px-4">Action Summary</th>
+                    <th className="py-2.5 px-4 text-right">Latency</th>
+                    <th className="py-2.5 px-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {pipelineEvents.map((ev) => (
+                    <tr key={ev.event_id} className="hover:bg-slate-50">
+                      <td className="py-2.5 px-4 font-mono tabular-nums">
+                        <div className="font-semibold text-slate-900">{ev.event_id}</div>
+                        <div className="text-slate-500">{ev.timestamp}</div>
+                      </td>
+                      <td className="py-2.5 px-4 font-mono text-slate-800">
+                        {ev.pipeline_id} · {ev.pipeline_name}
+                      </td>
+                      <td className="py-2.5 px-4">
+                        <div className="font-medium text-slate-900">
+                          {ev.actor_name} ({ev.actor_role})
+                        </div>
+                        <div className="font-mono text-slate-500">{ev.booth_code} Booth</div>
+                      </td>
+                      <td className="py-2.5 px-4 text-slate-700">{ev.action_summary}</td>
+                      <td className="py-2.5 px-4 text-right font-mono tabular-nums text-emerald-700">
+                        {ev.duration_ms.toFixed(2)} ms
+                      </td>
+                      <td className="py-2.5 px-4 font-mono font-semibold">
+                        <span
+                          className={
+                            ev.status === 'COMMITTED' ? 'text-emerald-700' : 'text-amber-700'
+                          }
+                        >
+                          {ev.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
       )}
 
       {/* TAB 2: 200 FACULTY ROSTER */}
@@ -539,7 +588,7 @@ uvicorn main:app --app-dir backend --port 8000`}
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold text-slate-900 font-mono">
-                backend/data/omnierp_database.json
+                omnierp_database.json (Pure Pipeline Relational Dataset)
               </h3>
               <p className="text-xs text-slate-500">
                 Complete relational JSON structure ({db.departments.length} departments, {db.faculty.length} faculty, {db.students.length} students)
