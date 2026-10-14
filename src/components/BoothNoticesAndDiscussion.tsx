@@ -190,15 +190,15 @@ export const BoothNoticesAndDiscussion: React.FC<BoothNoticesAndDiscussionProps>
                 className="bg-white border border-slate-200 rounded-xl p-6 space-y-4"
               >
                 <div className="pb-3 border-b border-slate-200">
-                  <div className="text-xs text-slate-500 font-mono mb-1">
+                  <div className="text-xs text-slate-500 font-mono mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                     <span className="font-bold text-slate-900">{thread.course_code}</span>
-                    <span className="mx-2">·</span>
+                    <span>·</span>
                     <span>Posted by {thread.author_name} ({thread.author_role})</span>
-                    <span className="mx-2">·</span>
+                    <span>·</span>
                     <span>{thread.created_at}</span>
                   </div>
-                  <h3 className="text-base font-bold text-slate-900">{thread.title}</h3>
-                  <p className="text-xs text-slate-700 leading-relaxed mt-2">{thread.body}</p>
+                  <h3 className="text-base font-bold text-slate-900 break-words">{thread.title}</h3>
+                  <p className="text-xs text-slate-700 leading-relaxed mt-2 break-words">{thread.body}</p>
                 </div>
 
                 {/* Replies */}
@@ -209,24 +209,24 @@ export const BoothNoticesAndDiscussion: React.FC<BoothNoticesAndDiscussionProps>
                   {thread.replies.map((rep) => (
                     <div
                       key={rep.id}
-                      className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-1"
+                      className="p-3 sm:p-3.5 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-1 w-full max-w-full"
                     >
-                      <div className="flex items-center justify-between text-slate-500">
-                        <span className="font-semibold text-slate-900">
+                      <div className="flex flex-wrap items-center justify-between gap-1 text-slate-500">
+                        <span className="font-semibold text-slate-900 break-words">
                           {rep.author_name}{' '}
                           <span className="font-mono font-normal text-slate-500">
                             ({rep.author_role} · {rep.author_id})
                           </span>
                         </span>
-                        <span className="font-mono">{rep.created_at}</span>
+                        <span className="font-mono text-[11px]">{rep.created_at}</span>
                       </div>
-                      <p className="text-slate-700 leading-relaxed">{rep.message}</p>
+                      <p className="text-slate-700 leading-relaxed break-words">{rep.message}</p>
                     </div>
                   ))}
                 </div>
 
                 {/* Reply Input */}
-                <div className="pt-2 flex items-center gap-2">
+                <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full max-w-full">
                   <input
                     type="text"
                     value={replyInputs[thread.id] || ''}
@@ -240,12 +240,12 @@ export const BoothNoticesAndDiscussion: React.FC<BoothNoticesAndDiscussionProps>
                       }
                     }}
                     placeholder={`Reply as ${currentAuthor.name} (${role})...`}
-                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-slate-900"
+                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-slate-900 min-w-0"
                   />
                   <button
                     type="button"
                     onClick={() => handlePostReply(thread.id)}
-                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
                   >
                     <Send className="w-3.5 h-3.5" />
                     <span>Post Reply</span>

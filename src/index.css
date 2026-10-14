@@ -7,23 +7,59 @@
     --font-mono: 'JetBrains Mono', monospace;
   }
 
+  html, body, #root {
+    max-width: 100vw;
+    overflow-x: hidden;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
   body {
     font-family: var(--font-sans);
     color: #0F172A;
     background-color: #F8FAFC;
+    min-height: 100vh;
   }
 
-  h1, h2, h3, h4, .font-display {
+  h1, h2, h3, h4, h5, h6, .font-display {
     font-family: var(--font-display);
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
+  p, span, a, label, li, td, th {
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+
+  img, svg, video, canvas, audio, iframe {
+    max-width: 100%;
+    height: auto;
   }
 
   code, pre, .font-mono {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
   }
 }
 
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+}
+
+/* Custom horizontal scrollbar styling for contained tables and chips */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 

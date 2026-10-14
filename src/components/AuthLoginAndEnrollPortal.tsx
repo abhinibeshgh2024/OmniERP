@@ -250,18 +250,18 @@ export const AuthLoginAndEnrollPortal: React.FC<AuthLoginAndEnrollPortalProps> =
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col justify-between">
+    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col justify-between w-full max-w-full overflow-x-hidden">
       {/* Top Bar Contract */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between gap-8">
+      <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 sm:gap-6 w-full max-w-full">
         <div className="flex items-center gap-2 shrink-0">
-          <span className="font-display text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap">
+          <span className="font-display text-base sm:text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap">
             Martinet
           </span>
-          <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md font-medium">
+          <span className="text-[11px] sm:text-xs px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md font-medium truncate max-w-[200px] sm:max-w-none">
             Usha Martin University, Ranchi
           </span>
         </div>
-        <nav className="hidden md:flex items-center gap-6 text-xs font-medium text-slate-600">
+        <nav className="hidden md:flex items-center gap-4 lg:gap-6 text-xs font-medium text-slate-600">
           <span className="whitespace-nowrap">Role-Based Portals</span>
           <span>·</span>
           <span className="whitespace-nowrap">HOD Approval Gatekeeper</span>
@@ -274,9 +274,9 @@ export const AuthLoginAndEnrollPortal: React.FC<AuthLoginAndEnrollPortalProps> =
       </header>
 
       {/* Main Authentication & Enrollment Split Container */}
-      <main className="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-6 py-6 sm:py-10 grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
+      <main className="flex-1 max-w-[1200px] w-full mx-auto px-3 sm:px-6 py-4 sm:py-10 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 items-start min-w-0">
         {/* Left Column: Role Login & Student Enrollment Card */}
-        <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-5 sm:p-8 space-y-5 sm:space-y-6">
+        <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-4 sm:p-8 space-y-4 sm:space-y-6 w-full max-w-full min-w-0 shadow-2xs">
           <div>
             <div className="text-xs font-semibold text-slate-500 mb-1">
               USHA MARTIN UNIVERSITY, RANCHI — OFFICIAL ERP
@@ -692,15 +692,15 @@ export const AuthLoginAndEnrollPortal: React.FC<AuthLoginAndEnrollPortalProps> =
               <button
                 type="button"
                 onClick={() => handleFillDemoAccount('STUDENT')}
-                className="w-full text-left p-3.5 rounded-lg border border-slate-200 hover:border-slate-900 bg-slate-50 hover:bg-white transition-colors cursor-pointer flex items-center justify-between"
+                className="w-full text-left p-3 sm:p-3.5 rounded-lg border border-slate-200 hover:border-slate-900 bg-slate-50 hover:bg-white transition-colors cursor-pointer flex items-center justify-between gap-2"
               >
-                <div>
-                  <div className="font-bold text-slate-900">Registered Student Account</div>
-                  <div className="font-mono text-slate-600 mt-0.5">
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-slate-900 truncate">Registered Student Account</div>
+                  <div className="font-mono text-slate-600 mt-0.5 text-[11px] sm:text-xs break-all">
                     {studentsList[0].email} · Pass: Student@2026
                   </div>
                 </div>
-                <span className="font-semibold text-slate-900 shrink-0">Fill →</span>
+                <span className="font-semibold text-slate-900 shrink-0 text-xs">Fill →</span>
               </button>
 
               <button
@@ -715,61 +715,61 @@ export const AuthLoginAndEnrollPortal: React.FC<AuthLoginAndEnrollPortalProps> =
                   setAuthError(null);
                   setEnrollSentConfirmation(null);
                 }}
-                className="w-full text-left p-3.5 rounded-lg border border-slate-200 hover:border-slate-900 bg-slate-50 hover:bg-white transition-colors cursor-pointer flex items-center justify-between"
+                className="w-full text-left p-3 sm:p-3.5 rounded-lg border border-slate-200 hover:border-slate-900 bg-slate-50 hover:bg-white transition-colors cursor-pointer flex items-center justify-between gap-2"
               >
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="font-bold text-slate-900">
                     Unregistered Student (Test "Request to enroll is sent")
                   </div>
-                  <div className="font-mono text-slate-600 mt-0.5">
+                  <div className="font-mono text-slate-600 mt-0.5 text-[11px] sm:text-xs break-all">
                     aarav.mehta@ushamartin.edu.in · Phone: 9845012345
                   </div>
                 </div>
-                <span className="font-semibold text-slate-900 shrink-0">Fill →</span>
+                <span className="font-semibold text-slate-900 shrink-0 text-xs">Fill →</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleFillDemoAccount('HOD')}
-                className="w-full text-left p-3.5 rounded-lg border border-slate-200 hover:border-slate-900 bg-slate-50 hover:bg-white transition-colors cursor-pointer flex items-center justify-between"
+                className="w-full text-left p-3 sm:p-3.5 rounded-lg border border-slate-200 hover:border-slate-900 bg-slate-50 hover:bg-white transition-colors cursor-pointer flex items-center justify-between gap-2"
               >
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="font-bold text-slate-900">
                     Head of Department (HOD — Approves Enrollments & Booths)
                   </div>
-                  <div className="font-mono text-slate-600 mt-0.5">
+                  <div className="font-mono text-slate-600 mt-0.5 text-[11px] sm:text-xs break-all">
                     {db.faculty[0].email} · Pass: HodAdmin@2026
                   </div>
                 </div>
-                <span className="font-semibold text-slate-900 shrink-0">Fill →</span>
+                <span className="font-semibold text-slate-900 shrink-0 text-xs">Fill →</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleFillDemoAccount('FACULTY')}
-                className="w-full text-left p-3.5 rounded-lg border border-slate-200 hover:border-slate-900 bg-slate-50 hover:bg-white transition-colors cursor-pointer flex items-center justify-between"
+                className="w-full text-left p-3 sm:p-3.5 rounded-lg border border-slate-200 hover:border-slate-900 bg-slate-50 hover:bg-white transition-colors cursor-pointer flex items-center justify-between gap-2"
               >
-                <div>
-                  <div className="font-bold text-slate-900">Faculty Member Account</div>
-                  <div className="font-mono text-slate-600 mt-0.5">
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-slate-900 truncate">Faculty Member Account</div>
+                  <div className="font-mono text-slate-600 mt-0.5 text-[11px] sm:text-xs break-all">
                     {db.faculty[1].email} · Pass: Faculty@2026
                   </div>
                 </div>
-                <span className="font-semibold text-slate-900 shrink-0">Fill →</span>
+                <span className="font-semibold text-slate-900 shrink-0 text-xs">Fill →</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleFillDemoAccount('ADMIN')}
-                className="w-full text-left p-3.5 rounded-lg border border-slate-200 hover:border-slate-900 bg-slate-50 hover:bg-white transition-colors cursor-pointer flex items-center justify-between"
+                className="w-full text-left p-3 sm:p-3.5 rounded-lg border border-slate-200 hover:border-slate-900 bg-slate-50 hover:bg-white transition-colors cursor-pointer flex items-center justify-between gap-2"
               >
-                <div>
-                  <div className="font-bold text-slate-900">University Administrator Account</div>
-                  <div className="font-mono text-slate-600 mt-0.5">
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-slate-900 truncate">University Administrator Account</div>
+                  <div className="font-mono text-slate-600 mt-0.5 text-[11px] sm:text-xs break-all">
                     registrar@ushamartin.edu.in · Pass: Admin@2026
                   </div>
                 </div>
-                <span className="font-semibold text-slate-900 shrink-0">Fill →</span>
+                <span className="font-semibold text-slate-900 shrink-0 text-xs">Fill →</span>
               </button>
             </div>
           </div>

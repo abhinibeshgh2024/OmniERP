@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   Calendar,
   Award,
@@ -14,9 +14,8 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
-  MoveHorizontal,
-  User,
   GraduationCap,
+  FileCheck,
 } from 'lucide-react';
 import { UserRole } from '../data/operationalStore';
 
@@ -25,6 +24,7 @@ export type InstituteWorkspaceTab =
   | 'EXAMS_AND_MARKSHEETS'
   | 'MATERIALS_AND_LEAVES'
   | 'NOTICES_AND_DISCUSS'
+  | 'NO_DUES_CLEARANCE'
   | 'HOD_AND_ADMIN';
 
 interface MovableSidebarProps {
@@ -48,10 +48,8 @@ interface MovableSidebarProps {
   onSignOut: () => void;
   onExportJSON: () => void;
   onSwitchStaffRole?: (targetRole: 'FACULTY' | 'HOD' | 'ADMIN') => void;
-  dockSide: 'left' | 'right';
-  onChangeDockSide: (side: 'left' | 'right') => void;
-  isPinnedDesktop: boolean;
-  onTogglePinDesktop: () => void;
+  isPinnedDesktop?: boolean;
+  onTogglePinDesktop?: () => void;
 }
 
 export const MovableSidebar: React.FC<MovableSidebarProps> = ({
@@ -70,9 +68,7 @@ export const MovableSidebar: React.FC<MovableSidebarProps> = ({
   onSignOut,
   onExportJSON,
   onSwitchStaffRole,
-  dockSide,
-  onChangeDockSide,
-  isPinnedDesktop,
+  isPinnedDesktop = false,
   onTogglePinDesktop,
 }) => {
   // Close on Escape key
@@ -86,7 +82,11 @@ export const MovableSidebar: React.FC<MovableSidebarProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  const totalHODPending = pendingPortalRequestsCount + pendingBoothRequestsCount;
+  // Pending approvals visible ONLY to HOD and Admin
+  const isApprovalsReviewer = role === 'HOD' || role === 'ADMIN';
+  const totalHODPending = isApprovalsReviewer
+    ? pendingPortalRequestsCount + pendingBoothRequestsCount
+    : 0;
 
   const navItems = [
     {
@@ -117,7 +117,14 @@ export const MovableSidebar: React.FC<MovableSidebarProps> = ({
       icon: Megaphone,
       badge: null,
     },
-    ...(role !== 'STUDENT'
+    {
+      id: 'NO_DUES_CLEARANCE' as InstituteWorkspaceTab,
+      label: 'No Dues Clearance Slip',
+      subtext: 'Semester, bus & hostel dues status & slip',
+      icon: FileCheck,
+      badge: null,
+    },
+    ...(isApprovalsReviewer
       ? [
           {
             id: 'HOD_AND_ADMIN' as InstituteWorkspaceTab,
@@ -131,8 +138,8 @@ export const MovableSidebar: React.FC<MovableSidebarProps> = ({
   ];
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-white select-none">
-      {/* Brand & University Header with movable dock controls */}
+    <div className="flex flex-col h-full bg-white select-none w-full">
+      {/* Brand & University Header (Always on Left side) */}
       <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/70">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -150,31 +157,22 @@ export const MovableSidebar: React.FC<MovableSidebarProps> = ({
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
-            {/* Movable position switcher (Left/Right dock) */}
-            <button
-              type="button"
-              onClick={() => onChangeDockSide(dockSide === 'left' ? 'right' : 'left')}
-              title={`Move sidebar to ${dockSide === 'left' ? 'right' : 'left'} side`}
-              className="p-1.5 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-200/70 transition-colors cursor-pointer"
-              aria-label="Move sidebar side"
-            >
-              <MoveHorizontal className="w-4 h-4" />
-            </button>
-
             {/* Desktop Pin Toggle */}
-            <button
-              type="button"
-              onClick={onTogglePinDesktop}
-              title={isPinnedDesktop ? 'Unpin sidebar on desktop' : 'Pin sidebar on desktop'}
-              className="hidden lg:inline-flex p-1.5 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-200/70 transition-colors cursor-pointer"
-              aria-label="Toggle pin"
-            >
-              {isPinnedDesktop ? (
-                <ChevronLeft className="w-4 h-4" />
-              ) : (
-                <ChevronRight className="w-4 h-4" />
-              )}
-            </button>
+            {onTogglePinDesktop && (
+              <button
+                type="button"
+                onClick={onTogglePinDesktop}
+                title={isPinnedDesktop ? 'Unpin sidebar on desktop' : 'Pin sidebar on desktop'}
+                className="hidden lg:inline-flex p-1.5 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-200/70 transition-colors cursor-pointer"
+                aria-label="Toggle pin"
+              >
+                {isPinnedDesktop ? (
+                  <ChevronLeft className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
+              </button>
+            )}
 
             {/* Close button for mobile & tablet drawer */}
             <button
@@ -241,6 +239,8 @@ export const MovableSidebar: React.FC<MovableSidebarProps> = ({
                       }`}
                     >
                       {r}
+                      {/* Only show pending count on HOD or ADMIN buttons */}
+                      {r === 'HOD' && totalHODPending > 0 ? ` (${totalHODPending})` : ''}
                     </button>
                   ))}
                 </div>
@@ -250,11 +250,11 @@ export const MovableSidebar: React.FC<MovableSidebarProps> = ({
         </div>
       </div>
 
-      {/* Main Navigation Items */}
+      {/* Main Navigation Items (Timetable, marksheets, clearance all here ONLY) */}
       <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-6">
         <div>
           <div className="text-[10px] font-bold tracking-wider uppercase text-slate-400 px-2 mb-1.5">
-            Academic Portals
+            Academic Modules
           </div>
           <nav className="space-y-1">
             {navItems.map((item) => {
@@ -388,7 +388,8 @@ export const MovableSidebar: React.FC<MovableSidebarProps> = ({
             </div>
           )}
 
-          {pendingBoothRequestsCount > 0 && (
+          {/* Pending booth requests badge: only show if relevant */}
+          {pendingBoothRequestsCount > 0 && role === 'STUDENT' && (
             <div className="mt-2 p-2 bg-amber-50 rounded border border-amber-200 text-[10px] text-amber-800 flex items-center gap-1.5">
               <Clock className="w-3 h-3 shrink-0" />
               <span>
@@ -420,7 +421,7 @@ export const MovableSidebar: React.FC<MovableSidebarProps> = ({
         </button>
 
         <div className="text-center text-[10px] text-slate-400 pt-1">
-          Docked to {dockSide === 'left' ? 'Left' : 'Right'} · Touch Friendly
+          Sidebar docked strictly on Left · Touch Friendly
         </div>
       </div>
     </div>
@@ -428,7 +429,7 @@ export const MovableSidebar: React.FC<MovableSidebarProps> = ({
 
   return (
     <>
-      {/* 1. Backdrop Overlay for Phone & Tablet (when drawer is open) */}
+      {/* 1. Backdrop Overlay for Mobile/Tablet */}
       {isOpen && (
         <div
           className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-xs transition-opacity duration-300"
@@ -437,16 +438,10 @@ export const MovableSidebar: React.FC<MovableSidebarProps> = ({
         />
       )}
 
-      {/* 2. Slide-out Drawer on Mobile / Tablet / Unpinned Desktop */}
+      {/* 2. Slide-out Drawer strictly docked on the LEFT side */}
       <aside
-        className={`fixed top-0 bottom-0 z-50 w-72 sm:w-80 max-w-[85vw] shadow-2xl transition-transform duration-300 ease-in-out ${
-          dockSide === 'left' ? 'left-0' : 'right-0'
-        } ${
-          isOpen
-            ? 'translate-x-0'
-            : dockSide === 'left'
-            ? '-translate-x-full'
-            : 'translate-x-full'
+        className={`fixed top-0 bottom-0 left-0 z-50 w-72 sm:w-80 max-w-[85vw] shadow-2xl transition-transform duration-300 ease-in-out ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         aria-label="Institute Sidebar"
       >

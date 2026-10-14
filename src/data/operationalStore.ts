@@ -138,6 +138,51 @@ export interface CustomScheduledClass {
   faculty_name: string;
 }
 
+export interface StudentClearanceRecord {
+  student_id: string;
+  student_name: string;
+  department_code: string;
+  department_name: string;
+  semester: number;
+  roll_number: string;
+  academic_year: string;
+
+  // 1. Semester Fees
+  semester_fee_amount: number;
+  semester_fee_status: 'Paid' | 'Pending' | 'Overdue';
+  semester_fee_transaction_id?: string;
+  semester_fee_paid_date?: string;
+
+  // 2. Bus Transportation Facility Fees
+  bus_facility_applicable: boolean;
+  bus_route_name?: string;
+  bus_fee_amount: number;
+  bus_fee_status: 'Paid' | 'Pending' | 'N/A';
+  bus_fee_transaction_id?: string;
+  bus_fee_paid_date?: string;
+
+  // 3. Hostel & Mess Boarding Facility Fees
+  hostel_facility_applicable: boolean;
+  hostel_block_room?: string;
+  hostel_fee_amount: number;
+  hostel_fee_status: 'Paid' | 'Pending' | 'N/A';
+  hostel_fee_transaction_id?: string;
+  hostel_fee_paid_date?: string;
+
+  // 4. Institutional Clearances (Library & Laboratory)
+  library_clearance_status: 'Cleared' | 'Pending';
+  library_remarks?: string;
+  laboratory_clearance_status: 'Cleared' | 'Pending';
+  sports_gymkhana_clearance_status: 'Cleared' | 'Pending';
+
+  // Admin Issuance & Clearance Slip Controls
+  clearance_issued_by_admin: boolean;
+  issued_by_admin_name?: string;
+  issued_at?: string;
+  certificate_number?: string;
+  admin_remarks?: string;
+}
+
 export function computeGradeFromTotal(total: number): {
   grade_letter: StudentCourseMark['grade_letter'];
   grade_points: number;
@@ -413,4 +458,95 @@ export function generateInitialDiscussions(db: OmniERPDatabase): DiscussionThrea
   });
 
   return threads;
+}
+
+export function generateInitialClearanceRecords(db: OmniERPDatabase): StudentClearanceRecord[] {
+  const busRoutes = [
+    'Route #1: Kantatoli - Lalpur - Campus',
+    'Route #2: Ratu Road - Harmu - Campus',
+    'Route #3: Doranda - Hinoo - Campus',
+    'Route #4: Bariatu - Morabadi - Campus',
+    'Route #5: Dhurwa - Hatia - Campus',
+  ];
+
+  const hostelBlocks = [
+    'Birsa Munda Boys Hostel (Block A - Rm 204)',
+    'Birsa Munda Boys Hostel (Block B - Rm 112)',
+    'Rani Gaidinliu Girls Hostel (Block C - Rm 305)',
+    'Rani Gaidinliu Girls Hostel (Block D - Rm 218)',
+  ];
+
+  return db.students.map((student, idx) => {
+    const isFeePaid = student.fee_payment_status === 'Paid';
+    const isFeePending = student.fee_payment_status === 'Pending' || student.fee_payment_status === 'Overdue';
+    
+    // Bus facility: around 50% students enrolled
+    const busApplicable = (idx % 2 === 0);
+    const busPaid = busApplicable ? (isFeePaid && idx % 3 !== 0) : false;
+
+    // Hostel facility: around 35% students reside in hostel (cannot be both bus and hostel)
+    const hostelApplicable = !busApplicable && (idx % 3 === 0);
+    const hostelPaid = hostelApplicable ? (isFeePaid && idx % 4 !== 0) : false;
+
+    const libraryCleared = !isFeePending || idx % 2 === 0;
+    const labCleared = !isFeePending || idx % 3 === 0;
+
+    // Eligible for clearance slip if all applicable are paid/cleared
+    const allDuesPaid =
+      isFeePaid &&
+      (!busApplicable || busPaid) &&
+      (!hostelApplicable || hostelPaid) &&
+      libraryCleared &&
+      labCleared;
+
+    // Admin has issued clearance for some eligible students initially
+    const clearanceIssued = allDuesPaid && (idx % 2 === 0);
+
+    return {
+      student_id: student.student_id,
+      student_name: student.full_name,
+      department_code: student.department_code,
+      department_name: student.department,
+      semester: student.current_semester,
+      roll_number: `UMU/${student.department_code}/2024/${(1000 + idx).toString()}`,
+      academic_year: '2026-2027',
+
+      // Semester Fees
+      semester_fee_amount: 48500,
+      semester_fee_status: isFeePaid ? 'Paid' : isFeePending ? 'Pending' : 'Overdue',
+      semester_fee_transaction_id: isFeePaid ? `TXN-UMU-${2026000 + idx}` : undefined,
+      semester_fee_paid_date: isFeePaid ? `2026-09-${((idx % 25) + 1).toString().padStart(2, '0')}` : undefined,
+
+      // Bus Fees
+      bus_facility_applicable: busApplicable,
+      bus_route_name: busApplicable ? busRoutes[idx % busRoutes.length] : undefined,
+      bus_fee_amount: busApplicable ? 14000 : 0,
+      bus_fee_status: busApplicable ? (busPaid ? 'Paid' : 'Pending') : 'N/A',
+      bus_fee_transaction_id: busPaid ? `TXN-BUS-${304000 + idx}` : undefined,
+      bus_fee_paid_date: busPaid ? `2026-09-${((idx % 20) + 5).toString().padStart(2, '0')}` : undefined,
+
+      // Hostel Fees
+      hostel_facility_applicable: hostelApplicable,
+      hostel_block_room: hostelApplicable ? hostelBlocks[idx % hostelBlocks.length] : undefined,
+      hostel_fee_amount: hostelApplicable ? 38000 : 0,
+      hostel_fee_status: hostelApplicable ? (hostelPaid ? 'Paid' : 'Pending') : 'N/A',
+      hostel_fee_transaction_id: hostelPaid ? `TXN-HSTL-${509000 + idx}` : undefined,
+      hostel_fee_paid_date: hostelPaid ? `2026-09-${((idx % 18) + 2).toString().padStart(2, '0')}` : undefined,
+
+      // Library & Lab
+      library_clearance_status: libraryCleared ? 'Cleared' : 'Pending',
+      library_remarks: libraryCleared ? 'All catalogued books returned in good condition' : '1 Reference book overdue (Central Library)',
+      laboratory_clearance_status: labCleared ? 'Cleared' : 'Pending',
+      sports_gymkhana_clearance_status: 'Cleared',
+
+      // Admin Issuance
+      clearance_issued_by_admin: clearanceIssued,
+      issued_by_admin_name: clearanceIssued ? 'Chief Institute Registrar (Admin Office)' : undefined,
+      issued_at: clearanceIssued ? `2026-10-0${(idx % 8) + 1} 11:30 AM` : undefined,
+      certificate_number: clearanceIssued ? `UMU/NODUES/2026-27/${student.department_code}/${1000 + idx}` : undefined,
+      admin_remarks: clearanceIssued
+        ? 'Verified all financial ledgers, hostel inventory, and lab clearance. Formally issued.'
+        : undefined,
+    };
+  });
 }

@@ -250,8 +250,8 @@ export const BoothAttendanceAndClasses: React.FC<BoothAttendanceAndClassesProps>
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
+              <div className="overflow-x-auto w-full max-w-full border border-slate-200 rounded-lg">
+                <table className="w-full min-w-[680px] text-left border-collapse text-xs">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
                     <tr>
                       <th className="py-2.5 px-4">Course Code</th>
@@ -405,8 +405,8 @@ export const BoothAttendanceAndClasses: React.FC<BoothAttendanceAndClassesProps>
               </div>
 
               {/* Roll-Call Student Roster Table */}
-              <div className="overflow-x-auto border border-slate-200 rounded-lg">
-                <table className="w-full text-left border-collapse text-xs">
+              <div className="overflow-x-auto w-full max-w-full border border-slate-200 rounded-lg">
+                <table className="w-full min-w-[720px] text-left border-collapse text-xs">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
                     <tr>
                       <th className="py-3 px-4">Student ID</th>
@@ -527,8 +527,8 @@ export const BoothAttendanceAndClasses: React.FC<BoothAttendanceAndClassesProps>
                 </p>
               </div>
             </div>
-            <div className="overflow-x-auto max-h-[540px] overflow-y-auto">
-              <table className="w-full text-left border-collapse text-xs">
+            <div className="overflow-x-auto w-full max-w-full max-h-[540px] overflow-y-auto">
+              <table className="w-full min-w-[720px] text-left border-collapse text-xs">
                 <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 text-slate-600">
                   <tr>
                     <th className="py-3 px-4">Course & Title</th>
@@ -677,8 +677,8 @@ export const BoothAttendanceAndClasses: React.FC<BoothAttendanceAndClassesProps>
               </p>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+          <div className="overflow-x-auto w-full max-w-full border-t border-slate-200">
+            <table className="w-full min-w-[720px] text-left border-collapse text-xs">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
                 <tr>
                   <th className="py-3 px-4">Exam Code & Course</th>

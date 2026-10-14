@@ -381,11 +381,11 @@ export const HODApprovalConsole: React.FC<HODApprovalConsoleProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full max-w-full">
         {/* Queue 1: New Student Portal Enrollment Requests */}
-        <div className="border border-slate-200 rounded-xl overflow-hidden">
+        <div className="border border-slate-200 rounded-xl overflow-hidden min-w-0">
           <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-            <h3 className="text-xs font-bold text-slate-900">
+            <h3 className="text-xs font-bold text-slate-900 truncate">
               1. New Student Portal Enrollment Requests ({portalRequests.length})
             </h3>
           </div>
@@ -396,15 +396,15 @@ export const HODApprovalConsole: React.FC<HODApprovalConsoleProps> = ({
           ) : (
             <div className="divide-y divide-slate-200 max-h-[320px] overflow-y-auto">
               {portalRequests.map((req) => (
-                <div key={req.id} className="p-4 text-xs space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900 text-sm">
+                <div key={req.id} className="p-4 text-xs space-y-2 min-w-0">
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <span className="font-bold text-slate-900 text-sm break-words">
                       {req.full_name}{' '}
                       <span className="font-mono text-xs text-slate-500">
                         ({req.student_id_assigned})
                       </span>
                     </span>
-                    <span className="font-mono font-semibold">
+                    <span className="font-mono font-semibold shrink-0">
                       {req.status === 'PENDING_HOD_APPROVAL' ? (
                         <span className="text-amber-700">PENDING HOD</span>
                       ) : req.status === 'APPROVED' ? (
@@ -414,14 +414,14 @@ export const HODApprovalConsole: React.FC<HODApprovalConsoleProps> = ({
                       )}
                     </span>
                   </div>
-                  <div className="font-mono text-slate-600">
+                  <div className="font-mono text-slate-600 break-all text-[11px] sm:text-xs">
                     Email: {req.email} · Phone: {req.phone}
                   </div>
-                  <div className="text-slate-600">
+                  <div className="text-slate-600 break-words">
                     Department: <strong>{req.department_name} ({req.department_code})</strong> · Semester {req.semester}
                   </div>
                   {req.status === 'PENDING_HOD_APPROVAL' && (
-                    <div className="pt-1 flex items-center gap-2">
+                    <div className="pt-1 flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={() => onReviewPortalRequest(req.id, 'APPROVED')}
@@ -447,10 +447,10 @@ export const HODApprovalConsole: React.FC<HODApprovalConsoleProps> = ({
         </div>
 
         {/* Queue 2: "+ Add Booth" Enrollment Requests */}
-        <div className="border border-slate-200 rounded-xl overflow-hidden">
+        <div className="border border-slate-200 rounded-xl overflow-hidden min-w-0">
           <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-            <h3 className="text-xs font-bold text-slate-900">
-              2. Department Booth Enrollment Requests ("+ Add Booth") ({boothRequests.length})
+            <h3 className="text-xs font-bold text-slate-900 truncate">
+              2. Department Booth Enrollment Requests ({boothRequests.length})
             </h3>
           </div>
           {boothRequests.length === 0 ? (
@@ -460,12 +460,12 @@ export const HODApprovalConsole: React.FC<HODApprovalConsoleProps> = ({
           ) : (
             <div className="divide-y divide-slate-200 max-h-[320px] overflow-y-auto">
               {boothRequests.map((breq) => (
-                <div key={breq.id} className="p-4 text-xs space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900 text-sm">
+                <div key={breq.id} className="p-4 text-xs space-y-2 min-w-0">
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <span className="font-bold text-slate-900 text-sm break-words">
                       {breq.booth_department_name} ({breq.booth_department_code} Booth)
                     </span>
-                    <span className="font-mono font-semibold">
+                    <span className="font-mono font-semibold shrink-0">
                       {breq.status === 'PENDING_HOD_APPROVAL' ? (
                         <span className="text-amber-700">PENDING HOD</span>
                       ) : breq.status === 'APPROVED' ? (
@@ -475,12 +475,12 @@ export const HODApprovalConsole: React.FC<HODApprovalConsoleProps> = ({
                       )}
                     </span>
                   </div>
-                  <div className="text-slate-700">
+                  <div className="text-slate-700 break-words">
                     Requester: <strong>{breq.requester_name}</strong> ({breq.requester_role} ·{' '}
-                    <span className="font-mono">{breq.requester_email}</span>)
+                    <span className="font-mono break-all text-[11px] sm:text-xs">{breq.requester_email}</span>)
                   </div>
                   {breq.status === 'PENDING_HOD_APPROVAL' && (
-                    <div className="pt-1 flex items-center gap-2">
+                    <div className="pt-1 flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={() => onReviewBoothRequest(breq.id, 'APPROVED')}

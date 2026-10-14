@@ -42,8 +42,13 @@ import { BoothAttendanceAndClasses } from './components/BoothAttendanceAndClasse
 import { BoothExamsAndMarksheets } from './components/BoothExamsAndMarksheets';
 import { BoothStudyMaterialsAndLeaves } from './components/BoothStudyMaterialsAndLeaves';
 import { BoothNoticesAndDiscussion } from './components/BoothNoticesAndDiscussion';
+import { BoothNoDuesClearance } from './components/BoothNoDuesClearance';
 import { AdminGovernancePortal } from './components/AdminGovernancePortal';
 import { MovableSidebar, InstituteWorkspaceTab } from './components/MovableSidebar';
+import {
+  StudentClearanceRecord,
+  generateInitialClearanceRecords,
+} from './data/operationalStore';
 
 const STORAGE_KEY = 'omnierp_v4_pipeline_state';
 
@@ -121,11 +126,13 @@ export default function App() {
   const [activeBoothCode, setActiveBoothCode] = useState<string>('');
   const [activeTab, setActiveTab] = useState<InstituteWorkspaceTab>('CLASSES_AND_ATTENDANCE');
 
-  // Movable Responsive Sidebar State (Phone, Tablet, Desktop)
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
-  const [dockSide, setDockSide] = useState<'left' | 'right'>(
-    () => (savedState?.dockSide as 'left' | 'right') || 'left'
+  // Student No Dues Clearance Records (Semester fee, Bus fee, Hostel fee)
+  const [clearanceRecords, setClearanceRecords] = useState<StudentClearanceRecord[]>(
+    () => savedState?.clearanceRecords || generateInitialClearanceRecords(initialDb)
   );
+
+  // Responsive Left-Docked Sidebar State (Phone, Tablet, Desktop)
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isPinnedDesktop, setIsPinnedDesktop] = useState<boolean>(
     () => savedState?.isPinnedDesktop ?? false
   );
@@ -169,7 +176,7 @@ export default function App() {
           markOverrides,
           portalRequests,
           boothRequests,
-          dockSide,
+          clearanceRecords,
           isPinnedDesktop,
           pipelineEvents: pipelineEvents.slice(0, 40),
         })
@@ -191,7 +198,7 @@ export default function App() {
     markOverrides,
     portalRequests,
     boothRequests,
-    dockSide,
+    clearanceRecords,
     isPinnedDesktop,
     pipelineEvents,
   ]);
@@ -559,6 +566,47 @@ export default function App() {
     );
   };
 
+  const handleUpdateClearanceRecord = (record: StudentClearanceRecord) => {
+    setClearanceRecords((prev) =>
+      prev.map((r) => (r.student_id === record.student_id ? record : r))
+    );
+  };
+
+  const handleBatchIssueClearances = (departmentCode?: string) => {
+    setClearanceRecords((prev) =>
+      prev.map((rec) => {
+        if (departmentCode && departmentCode !== 'ALL' && rec.department_code !== departmentCode) {
+          return rec;
+        }
+        const isSemPaid = rec.semester_fee_status === 'Paid';
+        const isBusPaid = !rec.bus_facility_applicable || rec.bus_fee_status === 'Paid';
+        const isHostelPaid = !rec.hostel_facility_applicable || rec.hostel_fee_status === 'Paid';
+        const isLibClear = rec.library_clearance_status === 'Cleared';
+        const isLabClear = rec.laboratory_clearance_status === 'Cleared';
+
+        if (isSemPaid && isBusPaid && isHostelPaid && isLibClear && isLabClear) {
+          return {
+            ...rec,
+            clearance_issued_by_admin: true,
+            issued_by_admin_name: `${currentUser.name} (Admin Directorate)`,
+            issued_at: new Date().toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+            certificate_number:
+              rec.certificate_number ||
+              `UMU/NODUES/2026-27/${rec.department_code}/${Date.now().toString().slice(-4)}`,
+            admin_remarks: 'Institutional zero dues verified. Issued via Administrative Batch Action.',
+          };
+        }
+        return rec;
+      })
+    );
+  };
+
   const handleResetFactoryState = () => {
     localStorage.removeItem(STORAGE_KEY);
     setStudentsList(initialDb.students);
@@ -566,6 +614,7 @@ export default function App() {
     setLeaves(generateInitialLeaves(initialDb));
     setNotices(generateInitialNotices(initialDb));
     setDiscussions(generateInitialDiscussions(initialDb));
+    setClearanceRecords(generateInitialClearanceRecords(initialDb));
     setAttendanceSessions([]);
     setCustomClasses([]);
     setMarkOverrides({});
@@ -623,35 +672,20 @@ export default function App() {
     portalRequests.filter((r) => r.status === 'PENDING_HOD_APPROVAL').length +
     boothRequests.filter((r) => r.status === 'PENDING_HOD_APPROVAL').length;
 
-  const navLinks: Array<{ id: InstituteWorkspaceTab; label: string }> = [
-    { id: 'CLASSES_AND_ATTENDANCE', label: 'Classes & Attendance' },
-    { id: 'EXAMS_AND_MARKSHEETS', label: 'Exams & Marksheets' },
-    { id: 'MATERIALS_AND_LEAVES', label: 'Materials & Leaves' },
-    { id: 'NOTICES_AND_DISCUSS', label: 'Notices & Discuss' },
-    ...(role !== 'STUDENT'
-      ? [
-          {
-            id: 'HOD_AND_ADMIN' as const,
-            label:
-              totalPendingHODApprovals > 0
-                ? `HOD & Admin (${totalPendingHODApprovals})`
-                : 'HOD & Admin',
-          },
-        ]
-      : []),
-  ];
+  // Pending approvals visible ONLY to HOD and Admin
+  const isApprovalsReviewer = role === 'HOD' || role === 'ADMIN';
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A] relative">
-      {/* Responsive Top Bar with Movable Sidebar Toggle */}
-      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-3.5 flex items-center justify-between gap-3 sm:gap-6 shadow-2xs">
-        {/* Zone 1: Sidebar Toggle + Wordmark */}
+    <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A] relative w-full max-w-full overflow-x-hidden">
+      {/* Clean Top Bar with Left Sidebar Toggle — All Module Options in Left Sidebar Only */}
+      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-3.5 flex items-center justify-between gap-3 sm:gap-6 shadow-2xs w-full max-w-full">
+        {/* Left: Sidebar Toggle + Wordmark */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <button
             type="button"
             onClick={() => setIsSidebarOpen((prev) => !prev)}
             className="p-2 -ml-1 text-slate-700 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
-            title={`Open sidebar (docked ${dockSide})`}
+            title="Open sidebar menu (Left)"
             aria-label="Open sidebar"
           >
             <Menu className="w-5 h-5 text-slate-800" />
@@ -673,38 +707,26 @@ export default function App() {
           </a>
         </div>
 
-        {/* Zone 2: Desktop 5 concise single-line text navigation links */}
-        <nav className="hidden xl:flex items-center gap-5 text-sm font-medium text-slate-600">
-          {navLinks.map((item) => {
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setActiveTab(item.id)}
-                className={`transition-colors whitespace-nowrap shrink-0 py-1 border-b-2 cursor-pointer ${
-                  isActive
-                    ? 'text-slate-900 border-slate-900 font-semibold'
-                    : 'text-slate-600 border-transparent hover:text-slate-900 hover:border-slate-300'
-                }`}
-              >
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Zone 3: Movable Dock Switcher & Sign Out */}
+        {/* Right: User Perspective & Sign Out */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={() => setDockSide((s) => (s === 'left' ? 'right' : 'left'))}
-            title={`Sidebar docked on ${dockSide}. Click to move to ${dockSide === 'left' ? 'right' : 'left'}`}
-            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer text-xs"
-          >
-            <MoveHorizontal className="w-3.5 h-3.5 text-slate-600" />
-            <span className="hidden sm:inline font-mono text-[11px] capitalize">{dockSide} Dock</span>
-          </button>
+          <div className="hidden sm:flex items-center gap-2 text-xs">
+            <span className="font-semibold text-slate-800 truncate max-w-[160px]">
+              {currentUser.name}
+            </span>
+            <span
+              className={`px-2 py-0.5 text-[10px] font-bold rounded-sm uppercase tracking-wider ${
+                role === 'STUDENT'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                  : role === 'HOD'
+                  ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                  : role === 'ADMIN'
+                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              }`}
+            >
+              {role}
+            </span>
+          </div>
 
           <button
             type="button"
@@ -712,39 +734,11 @@ export default function App() {
             className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Sign Out ({role})</span>
+            <span className="hidden sm:inline">Sign Out</span>
             <span className="sm:hidden">Sign Out</span>
           </button>
         </div>
       </header>
-
-      {/* Tablet & Phone Secondary Navigation Strip */}
-      <div className="xl:hidden bg-white border-b border-slate-200 px-3 py-2 flex items-center justify-between gap-2 overflow-x-auto shadow-2xs">
-        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 no-scrollbar">
-          {navLinks.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setActiveTab(item.id)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
-                activeTab === item.id
-                  ? 'bg-slate-900 text-white font-semibold'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => setIsSidebarOpen(true)}
-          className="text-xs font-semibold text-slate-800 hover:text-slate-950 px-2 py-1 rounded bg-slate-100 flex items-center gap-1 shrink-0 whitespace-nowrap cursor-pointer"
-        >
-          <Menu className="w-3.5 h-3.5" />
-          <span>More</span>
-        </button>
-      </div>
 
       {/* Active Session & "+ Add Booth" Enrollment Bar */}
       <div className="bg-white border-b border-slate-200">
@@ -805,7 +799,7 @@ export default function App() {
                     }`}
                   >
                     {r}
-                    {r === 'HOD' && totalPendingHODApprovals > 0
+                    {r === 'HOD' && isApprovalsReviewer && totalPendingHODApprovals > 0
                       ? ` (${totalPendingHODApprovals})`
                       : ''}
                   </button>
@@ -871,33 +865,20 @@ export default function App() {
         </div>
       </div>
 
-      {/* Movable Floating Action Button for Phone & Tablet */}
-      <div
-        className={`fixed z-30 bottom-5 ${
-          dockSide === 'left' ? 'left-4' : 'right-4'
-        } xl:hidden flex items-center gap-1.5 shadow-xl rounded-full bg-slate-900 text-white p-1`}
-      >
+      {/* Floating Action Menu Button for Phone & Tablet (Always on Left side) */}
+      <div className="fixed z-30 bottom-5 left-4 xl:hidden flex items-center shadow-xl rounded-full bg-slate-900 text-white p-1">
         <button
           type="button"
           onClick={() => setIsSidebarOpen(true)}
-          className="pl-3 pr-2 py-2 flex items-center gap-2 text-xs font-semibold cursor-pointer active:scale-95 transition-transform"
-          aria-label="Open Movable Sidebar"
+          className="px-3.5 py-2 flex items-center gap-2 text-xs font-semibold cursor-pointer active:scale-95 transition-transform"
+          aria-label="Open Sidebar Menu"
         >
           <Menu className="w-4 h-4 text-emerald-400" />
           <span>Menu & Booths</span>
         </button>
-        <button
-          type="button"
-          onClick={() => setDockSide((s) => (s === 'left' ? 'right' : 'left'))}
-          title={`Docked on ${dockSide}. Click to move to ${dockSide === 'left' ? 'right' : 'left'}`}
-          className="p-2 rounded-full hover:bg-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer"
-          aria-label="Move floating sidebar button"
-        >
-          <MoveHorizontal className="w-3.5 h-3.5" />
-        </button>
       </div>
 
-      {/* Movable Responsive Sidebar Drawer */}
+      {/* Left-Docked Responsive Sidebar Drawer */}
       <MovableSidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
@@ -942,8 +923,6 @@ export default function App() {
               }
             : undefined
         }
-        dockSide={dockSide}
-        onChangeDockSide={setDockSide}
         isPinnedDesktop={isPinnedDesktop}
         onTogglePinDesktop={() => setIsPinnedDesktop((p) => !p)}
       />
@@ -960,9 +939,9 @@ export default function App() {
       />
 
       {/* Main Workspace */}
-      <main className="flex-1 max-w-[1400px] w-full mx-auto px-3 sm:px-6 py-5 sm:py-8 space-y-6 sm:space-y-8">
-        {/* When HOD or ADMIN is logged in, always show the HOD Approval Console at the top or in the HOD_AND_ADMIN tab */}
-        {(role === 'HOD' || role === 'ADMIN' || activeTab === 'HOD_AND_ADMIN') && (
+      <main className="flex-1 max-w-[1400px] w-full mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-6 sm:space-y-8 min-w-0 max-w-full overflow-hidden">
+        {/* Pending approvals console: visible ONLY to HOD and Admin */}
+        {isApprovalsReviewer && (activeTab === 'HOD_AND_ADMIN' || (role === 'HOD' && totalPendingHODApprovals > 0)) && (
           <HODApprovalConsole
             portalRequests={portalRequests}
             boothRequests={boothRequests}
@@ -972,8 +951,8 @@ export default function App() {
           />
         )}
 
-        {/* If user is on a Booth operational tab (Classes, Exams, Materials, Notices) AND has NOT yet been approved for any booth by the HOD, block booth entry! */}
-        {activeTab !== 'HOD_AND_ADMIN' && !activeBoothDept ? (
+        {/* If user is on a departmental booth operational tab (Classes, Exams, Materials, Notices) AND has NOT yet been approved for any booth by the HOD, block booth entry! */}
+        {activeTab !== 'HOD_AND_ADMIN' && activeTab !== 'NO_DUES_CLEARANCE' && !activeBoothDept ? (
           <div className="bg-white border border-slate-200 rounded-xl p-10 text-center max-w-2xl mx-auto space-y-5">
             <Building2 className="w-10 h-10 text-slate-800 mx-auto" />
             <div className="space-y-2">
@@ -1072,23 +1051,35 @@ export default function App() {
               />
             )}
 
+            {activeTab === 'NO_DUES_CLEARANCE' && (
+              <BoothNoDuesClearance
+                role={role}
+                currentUser={currentUser}
+                activeBoothDept={activeBoothDept || initialDb.departments[0]}
+                studentsList={studentsList}
+                clearanceRecords={clearanceRecords}
+                onUpdateClearanceRecord={handleUpdateClearanceRecord}
+                onBatchIssueClearances={handleBatchIssueClearances}
+              />
+            )}
+
             {activeTab === 'HOD_AND_ADMIN' && (
               <div>
-                {role === 'STUDENT' ? (
+                {!isApprovalsReviewer ? (
                   <div className="bg-white border border-slate-200 rounded-xl p-8 text-center space-y-4">
                     <Lock className="w-8 h-8 text-slate-700 mx-auto" />
                     <h2 className="text-lg font-bold text-slate-900">
-                      Restricted Access — HOD & University Governance Console
+                      Restricted Access — HOD & Admin Governance Only
                     </h2>
                     <p className="text-xs text-slate-600 max-w-xl mx-auto leading-relaxed">
-                      You are signed in with a Student account ({currentUser.name}). Students can only access student contents and cannot access administrative or HOD controls.
+                      This console is reserved exclusively for the Head of Department (HOD) and Chief Institute Registrar (Admin). Staff with role {role} or Students do not have approval permissions.
                     </p>
                     <button
                       type="button"
                       onClick={() => setActiveTab('CLASSES_AND_ATTENDANCE')}
                       className="px-4 py-2 bg-slate-900 text-white text-xs font-semibold rounded-lg cursor-pointer"
                     >
-                      Return to Student Portal
+                      Return to Academic Modules
                     </button>
                   </div>
                 ) : (
@@ -1144,12 +1135,12 @@ export default function App() {
       </main>
 
       {/* Quiet Institutional Footer */}
-      <footer className="bg-white border-t border-slate-200 mt-12">
-        <div className="max-w-[1400px] mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <div>
+      <footer className="bg-white border-t border-slate-200 mt-12 w-full max-w-full">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 sm:py-5 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 text-xs text-slate-500 text-center sm:text-left w-full break-words">
+          <div className="break-words max-w-2xl">
             Martinet ERP · Usha Martin University, Ranchi · Signed in as {currentUser.name} ({role}) · Enrolled Booths: {userApprovedBoothCodes.length}
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 shrink-0">
             <button
               type="button"
               onClick={() => setIsAddBoothModalOpen(true)}

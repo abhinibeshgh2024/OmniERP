@@ -205,7 +205,7 @@ export const BoothExamsAndMarksheets: React.FC<BoothExamsAndMarksheetsProps> = (
     <div class="footer">
       <div>Head of Department: ${activeBoothDept.hod_name}</div>
       <div>Controller of Examinations (Digital Seal Verified)</div>
-      <div>Registrar, OmniERP University</div>
+      <div>Registrar, Usha Martin University, Ranchi</div>
     </div>
   </div>
 </body>
@@ -266,25 +266,25 @@ export const BoothExamsAndMarksheets: React.FC<BoothExamsAndMarksheetsProps> = (
   return (
     <div className="space-y-6">
       {/* Control Header */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 w-full max-w-full">
+        <div className="min-w-0">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 break-words">
             {activeBoothDept.department_name} ({activeBoothDept.department_code} Booth) — Official Marksheet Generator & Gradebook
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5 break-words">
             {role === 'STUDENT'
               ? 'View and download your official university semester statement of marks and cumulative transcript.'
               : 'Select any student in this department booth to inspect, edit internal/external exam marks, and generate official downloadable marksheets.'}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
           {role !== 'STUDENT' && (
             <select
               value={targetStudent.student_id}
               onChange={(e) => setSelectedStudentId(e.target.value)}
               aria-label="Select Student for Marksheet"
-              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 font-medium"
+              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 font-medium w-full sm:w-auto"
             >
               {boothStudents.map((stu) => (
                 <option key={stu.student_id} value={stu.student_id}>
@@ -297,40 +297,40 @@ export const BoothExamsAndMarksheets: React.FC<BoothExamsAndMarksheetsProps> = (
           <button
             type="button"
             onClick={handleDownloadMarksheetCSV}
-            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            className="flex-1 sm:flex-none px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>Download Transcript (CSV)</span>
+            <span>Transcript (CSV)</span>
           </button>
 
           <button
             type="button"
             onClick={handleDownloadPrintableMarksheet}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg flex items-center gap-2 cursor-pointer whitespace-nowrap"
+            className="flex-1 sm:flex-none px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Download Official Marksheet</span>
+            <span>Download Marksheet</span>
           </button>
         </div>
       </div>
 
       {/* Official University Statement of Marks Card */}
-      <div className="bg-white border border-slate-300 rounded-xl overflow-hidden">
+      <div className="bg-white border border-slate-300 rounded-xl overflow-hidden w-full max-w-full shadow-2xs">
         {/* Institutional Transcript Header */}
-        <div className="bg-slate-900 text-white px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="text-xs font-mono text-slate-300">
+        <div className="bg-slate-900 text-white px-4 sm:px-6 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 w-full">
+          <div className="min-w-0">
+            <div className="text-[11px] sm:text-xs font-mono text-slate-300 truncate">
               OFFICIAL STATEMENT OF MARKS · SERIAL NO: UMU-MS-2026-{targetStudent.student_id.slice(-4)}
             </div>
-            <h3 className="text-lg font-bold tracking-tight mt-0.5">
+            <h3 className="text-base sm:text-lg font-bold tracking-tight mt-0.5 break-words">
               Usha Martin University, Ranchi
             </h3>
-            <p className="text-xs text-slate-300 mt-0.5">
+            <p className="text-xs text-slate-300 mt-0.5 break-words">
               Martinet ERP · {activeBoothDept.department_name} ({activeBoothDept.school_block})
             </p>
           </div>
-          <div className="text-left sm:text-right font-mono tabular-nums">
-            <div className="text-xs text-slate-300">Classification Status</div>
+          <div className="text-left sm:text-right font-mono tabular-nums shrink-0">
+            <div className="text-[11px] sm:text-xs text-slate-300">Classification Status</div>
             <div className="text-sm font-bold text-emerald-400 mt-0.5">
               {summaryStats.division}
             </div>
@@ -338,7 +338,7 @@ export const BoothExamsAndMarksheets: React.FC<BoothExamsAndMarksheetsProps> = (
         </div>
 
         {/* Student Metadata Grid */}
-        <div className="p-6 bg-slate-50 border-b border-slate-200 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-xs">
+        <div className="p-4 sm:p-6 bg-slate-50 border-b border-slate-200 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 text-xs w-full">
           <div>
             <div className="text-slate-500">Student Name</div>
             <div className="font-semibold text-slate-900 mt-0.5">{targetStudent.full_name}</div>
@@ -376,8 +376,8 @@ export const BoothExamsAndMarksheets: React.FC<BoothExamsAndMarksheetsProps> = (
         </div>
 
         {/* Course-Wise Grade Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+        <div className="overflow-x-auto w-full max-w-full border-b border-slate-200">
+          <table className="w-full min-w-[720px] text-left border-collapse text-xs">
             <thead className="bg-white border-b border-slate-200 text-slate-600">
               <tr>
                 <th className="py-3.5 px-4">Course Code</th>
@@ -477,35 +477,35 @@ export const BoothExamsAndMarksheets: React.FC<BoothExamsAndMarksheetsProps> = (
         </div>
 
         {/* Transcript Summary Footer */}
-        <div className="p-6 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-6">
-          <div className="flex flex-wrap items-center gap-8 text-xs">
+        <div className="p-4 sm:p-6 bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
             <div>
-              <span className="text-slate-500">Registered Credits:</span>{' '}
-              <span className="font-mono font-bold text-slate-900 tabular-nums">
+              <div className="text-slate-500">Registered Credits</div>
+              <div className="font-mono font-bold text-slate-900 tabular-nums mt-0.5">
                 {summaryStats.totalCredits}
-              </span>
+              </div>
             </div>
             <div>
-              <span className="text-slate-500">Aggregate Score:</span>{' '}
-              <span className="font-mono font-bold text-slate-900 tabular-nums">
+              <div className="text-slate-500">Aggregate Score</div>
+              <div className="font-mono font-bold text-slate-900 tabular-nums mt-0.5">
                 {summaryStats.totalMarksObtained} / {summaryStats.maxPossibleMarks}
-              </span>
+              </div>
             </div>
             <div>
-              <span className="text-slate-500">Semester GPA (SGPA):</span>{' '}
-              <span className="font-mono font-bold text-base text-slate-900 tabular-nums">
+              <div className="text-slate-500">Semester SGPA</div>
+              <div className="font-mono font-bold text-base text-slate-900 tabular-nums mt-0.5">
                 {summaryStats.sgpa.toFixed(2)}
-              </span>
+              </div>
             </div>
             <div>
-              <span className="text-slate-500">Cumulative GPA (CGPA):</span>{' '}
-              <span className="font-mono font-bold text-base text-slate-900 tabular-nums">
+              <div className="text-slate-500">Cumulative CGPA</div>
+              <div className="font-mono font-bold text-base text-slate-900 tabular-nums mt-0.5">
                 {summaryStats.cgpa.toFixed(2)}
-              </span>
+              </div>
             </div>
           </div>
 
-          <div className="text-xs text-slate-500 font-mono">
+          <div className="text-xs text-slate-500 font-mono text-left md:text-right pt-2 md:pt-0 border-t md:border-t-0 border-slate-200">
             Verified by {activeBoothDept.hod_name} (HOD, {activeBoothDept.department_code})
           </div>
         </div>
