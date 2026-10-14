@@ -274,14 +274,14 @@ export const AuthLoginAndEnrollPortal: React.FC<AuthLoginAndEnrollPortalProps> =
       </header>
 
       {/* Main Authentication & Enrollment Split Container */}
-      <main className="flex-1 max-w-[1200px] w-full mx-auto px-6 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <main className="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-6 py-6 sm:py-10 grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
         {/* Left Column: Role Login & Student Enrollment Card */}
-        <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-6 sm:p-8 space-y-6">
+        <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-5 sm:p-8 space-y-5 sm:space-y-6">
           <div>
             <div className="text-xs font-semibold text-slate-500 mb-1">
               USHA MARTIN UNIVERSITY, RANCHI — OFFICIAL ERP
             </div>
-            <h1 className="font-display text-2xl font-bold text-slate-900 tracking-tight">
+            <h1 className="font-display text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
               Martinet Portal Login & Student Enrollment
             </h1>
             <p className="text-xs text-slate-600 mt-1">
@@ -320,7 +320,7 @@ export const AuthLoginAndEnrollPortal: React.FC<AuthLoginAndEnrollPortalProps> =
 
           {/* Student Sub-Mode Toggle: Registered Login vs New Student Enrollment */}
           {selectedRole === 'STUDENT' && (
-            <div className="flex items-center gap-2 pt-1 border-b border-slate-200 pb-4">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 pt-1 border-b border-slate-200 pb-4">
               <button
                 type="button"
                 onClick={() => {

@@ -9,6 +9,9 @@ import {
   LogOut,
   ShieldCheck,
   ArrowRight,
+  Menu,
+  MoveHorizontal,
+  PanelLeft,
 } from 'lucide-react';
 import {
   generateOmniERPDatabase,
@@ -40,13 +43,7 @@ import { BoothExamsAndMarksheets } from './components/BoothExamsAndMarksheets';
 import { BoothStudyMaterialsAndLeaves } from './components/BoothStudyMaterialsAndLeaves';
 import { BoothNoticesAndDiscussion } from './components/BoothNoticesAndDiscussion';
 import { AdminGovernancePortal } from './components/AdminGovernancePortal';
-
-type InstituteWorkspaceTab =
-  | 'CLASSES_AND_ATTENDANCE'
-  | 'EXAMS_AND_MARKSHEETS'
-  | 'MATERIALS_AND_LEAVES'
-  | 'NOTICES_AND_DISCUSS'
-  | 'HOD_AND_ADMIN';
+import { MovableSidebar, InstituteWorkspaceTab } from './components/MovableSidebar';
 
 const STORAGE_KEY = 'omnierp_v4_pipeline_state';
 
@@ -124,6 +121,15 @@ export default function App() {
   const [activeBoothCode, setActiveBoothCode] = useState<string>('');
   const [activeTab, setActiveTab] = useState<InstituteWorkspaceTab>('CLASSES_AND_ATTENDANCE');
 
+  // Movable Responsive Sidebar State (Phone, Tablet, Desktop)
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const [dockSide, setDockSide] = useState<'left' | 'right'>(
+    () => (savedState?.dockSide as 'left' | 'right') || 'left'
+  );
+  const [isPinnedDesktop, setIsPinnedDesktop] = useState<boolean>(
+    () => savedState?.isPinnedDesktop ?? false
+  );
+
   const [pipelineEvents, setPipelineEvents] = useState<LivePipelineExecutionEvent[]>(
     () =>
       savedState?.pipelineEvents || [
@@ -163,6 +169,8 @@ export default function App() {
           markOverrides,
           portalRequests,
           boothRequests,
+          dockSide,
+          isPinnedDesktop,
           pipelineEvents: pipelineEvents.slice(0, 40),
         })
       );
@@ -183,6 +191,8 @@ export default function App() {
     markOverrides,
     portalRequests,
     boothRequests,
+    dockSide,
+    isPinnedDesktop,
     pipelineEvents,
   ]);
 
@@ -632,26 +642,39 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A]">
-      {/* Strict 3-Zone Top Bar Contract */}
-      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between gap-8">
-        {/* Zone 1: Single text element wordmark with university subtitle */}
-        <a
-          href="#top"
-          onClick={(e) => {
-            e.preventDefault();
-            setActiveTab('CLASSES_AND_ATTENDANCE');
-          }}
-          className="flex items-center gap-2 font-display text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0"
-        >
-          <span>Martinet</span>
-          <span className="text-xs font-medium px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md">
-            Usha Martin University, Ranchi
-          </span>
-        </a>
+    <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A] relative">
+      {/* Responsive Top Bar with Movable Sidebar Toggle */}
+      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-3.5 flex items-center justify-between gap-3 sm:gap-6 shadow-2xs">
+        {/* Zone 1: Sidebar Toggle + Wordmark */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen((prev) => !prev)}
+            className="p-2 -ml-1 text-slate-700 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+            title={`Open sidebar (docked ${dockSide})`}
+            aria-label="Open sidebar"
+          >
+            <Menu className="w-5 h-5 text-slate-800" />
+            <span className="hidden sm:inline text-xs font-semibold text-slate-800">Menu</span>
+          </button>
 
-        {/* Zone 2: 5 concise single-line text navigation links */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
+          <a
+            href="#top"
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveTab('CLASSES_AND_ATTENDANCE');
+            }}
+            className="flex items-center gap-2 font-display text-base sm:text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0"
+          >
+            <span>Martinet</span>
+            <span className="hidden md:inline text-[11px] font-medium px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md truncate max-w-[220px]">
+              Usha Martin University, Ranchi
+            </span>
+          </a>
+        </div>
+
+        {/* Zone 2: Desktop 5 concise single-line text navigation links */}
+        <nav className="hidden xl:flex items-center gap-5 text-sm font-medium text-slate-600">
           {navLinks.map((item) => {
             const isActive = activeTab === item.id;
             return (
@@ -671,60 +694,83 @@ export default function App() {
           })}
         </nav>
 
-        {/* Zone 3: 1 primary action */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Zone 3: Movable Dock Switcher & Sign Out */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={() => setDockSide((s) => (s === 'left' ? 'right' : 'left'))}
+            title={`Sidebar docked on ${dockSide}. Click to move to ${dockSide === 'left' ? 'right' : 'left'}`}
+            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer text-xs"
+          >
+            <MoveHorizontal className="w-3.5 h-3.5 text-slate-600" />
+            <span className="hidden sm:inline font-mono text-[11px] capitalize">{dockSide} Dock</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setIsAuthenticated(false)}
-            className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span>Sign Out ({role})</span>
+            <span className="hidden sm:inline">Sign Out ({role})</span>
+            <span className="sm:hidden">Sign Out</span>
           </button>
         </div>
       </header>
 
-      {/* Mobile Navigation Bar */}
-      <div className="md:hidden bg-white border-b border-slate-200 px-4 py-2 flex items-center gap-2 overflow-x-auto">
-        {navLinks.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setActiveTab(item.id)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap shrink-0 ${
-              activeTab === item.id
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
+      {/* Tablet & Phone Secondary Navigation Strip */}
+      <div className="xl:hidden bg-white border-b border-slate-200 px-3 py-2 flex items-center justify-between gap-2 overflow-x-auto shadow-2xs">
+        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 no-scrollbar">
+          {navLinks.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setActiveTab(item.id)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
+                activeTab === item.id
+                  ? 'bg-slate-900 text-white font-semibold'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsSidebarOpen(true)}
+          className="text-xs font-semibold text-slate-800 hover:text-slate-950 px-2 py-1 rounded bg-slate-100 flex items-center gap-1 shrink-0 whitespace-nowrap cursor-pointer"
+        >
+          <Menu className="w-3.5 h-3.5" />
+          <span>More</span>
+        </button>
       </div>
 
-      {/* Active Session & "+ Add Booth" Enrollment Bar (No Booths Shown Until Enrolled & Approved by HOD!) */}
+      {/* Active Session & "+ Add Booth" Enrollment Bar */}
       <div className="bg-white border-b border-slate-200">
-        <div className="max-w-[1400px] mx-auto px-6 py-4 space-y-3">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="text-xs text-slate-600">
-              <span>Signed in as:</span>{' '}
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-3 sm:py-4 space-y-2.5 sm:space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+            <div className="text-xs text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span>Signed in:</span>{' '}
               <span className="font-bold text-slate-900">{currentUser.name}</span>
-              <span className="mx-2">·</span>
-              <span className="font-mono text-slate-700">{currentUser.email}</span>
-              <span className="mx-2">·</span>
-              <span className="font-mono font-bold text-slate-900">Role: {role}</span>
+              <span className="hidden sm:inline text-slate-400">·</span>
+              <span className="font-mono text-slate-700 text-[11px] sm:text-xs truncate max-w-[200px] sm:max-w-none">
+                {currentUser.email}
+              </span>
+              <span className="text-slate-400">·</span>
+              <span className="font-mono font-bold text-slate-900">{role}</span>
             </div>
 
             {/* Role Governance: Students CANNOT switch roles */}
             {role === 'STUDENT' ? (
               <div className="flex items-center gap-2 text-xs">
-                <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-medium border border-slate-200">
-                  Student Portal · Role Locked to Student
+                <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-medium border border-slate-200 text-[11px] sm:text-xs">
+                  Student Portal · Role Locked
                 </span>
               </div>
             ) : (
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="text-slate-500">Staff Perspective:</span>
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs">
+                <span className="text-slate-500 text-[11px] sm:text-xs">Staff Perspective:</span>
                 {(['FACULTY', 'HOD', 'ADMIN'] as const).map((r) => (
                   <button
                     key={r}
@@ -752,7 +798,7 @@ export default function App() {
                         setActiveTab('HOD_AND_ADMIN');
                       }
                     }}
-                    className={`px-2.5 py-1 rounded border font-semibold cursor-pointer ${
+                    className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded border text-[11px] sm:text-xs font-semibold cursor-pointer ${
                       role === r
                         ? 'bg-slate-900 text-white border-slate-900'
                         : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
@@ -760,7 +806,7 @@ export default function App() {
                   >
                     {r}
                     {r === 'HOD' && totalPendingHODApprovals > 0
-                      ? ` (${totalPendingHODApprovals} Pending)`
+                      ? ` (${totalPendingHODApprovals})`
                       : ''}
                   </button>
                 ))}
@@ -769,16 +815,16 @@ export default function App() {
           </div>
 
           {/* Booth Bar: Only Approved Booths + "+ Add Booth" Button */}
-          <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5 mr-1">
+          <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex flex-wrap items-center gap-2 overflow-x-auto max-w-full py-0.5">
+              <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5 mr-1 shrink-0">
                 <Building2 className="w-3.5 h-3.5 text-slate-700" />
-                <span>My Enrolled Booths:</span>
+                <span>Enrolled Booths:</span>
               </span>
 
               {userApprovedBoothCodes.length === 0 ? (
                 <span className="text-xs text-slate-500 italic">
-                  No booths enrolled yet — Click "+ Add Booth" to select a booth and send an enrollment request to the HOD.
+                  No booths enrolled yet — Click "+ Add Booth" to request HOD entry.
                 </span>
               ) : (
                 userApprovedBoothCodes.map((bCode) => {
@@ -788,9 +834,9 @@ export default function App() {
                       key={bCode}
                       type="button"
                       onClick={() => setActiveBoothCode(bCode)}
-                      className={`px-3 py-1.5 text-xs font-mono font-bold rounded-lg border transition-colors flex items-center gap-1.5 cursor-pointer ${
+                      className={`px-2.5 sm:px-3 py-1.5 text-xs font-mono font-bold rounded-lg border transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 ${
                         isCurrent
-                          ? 'bg-slate-900 text-white border-slate-900'
+                          ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
                           : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'
                       }`}
                     >
@@ -805,10 +851,10 @@ export default function App() {
               {userPendingBoothRequests.map((pReq) => (
                 <span
                   key={pReq.id}
-                  className="px-2.5 py-1 text-xs font-mono text-amber-800 bg-amber-50 border border-amber-200 rounded-md inline-flex items-center gap-1.5"
+                  className="px-2.5 py-1 text-xs font-mono text-amber-800 bg-amber-50 border border-amber-200 rounded-md inline-flex items-center gap-1.5 shrink-0"
                 >
                   <Clock className="w-3 h-3" />
-                  <span>{pReq.booth_department_code} Booth: Request to enroll is sent (Awaiting HOD)</span>
+                  <span>{pReq.booth_department_code} Booth: Request sent (Awaiting HOD)</span>
                 </span>
               ))}
             </div>
@@ -825,6 +871,83 @@ export default function App() {
         </div>
       </div>
 
+      {/* Movable Floating Action Button for Phone & Tablet */}
+      <div
+        className={`fixed z-30 bottom-5 ${
+          dockSide === 'left' ? 'left-4' : 'right-4'
+        } xl:hidden flex items-center gap-1.5 shadow-xl rounded-full bg-slate-900 text-white p-1`}
+      >
+        <button
+          type="button"
+          onClick={() => setIsSidebarOpen(true)}
+          className="pl-3 pr-2 py-2 flex items-center gap-2 text-xs font-semibold cursor-pointer active:scale-95 transition-transform"
+          aria-label="Open Movable Sidebar"
+        >
+          <Menu className="w-4 h-4 text-emerald-400" />
+          <span>Menu & Booths</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setDockSide((s) => (s === 'left' ? 'right' : 'left'))}
+          title={`Docked on ${dockSide}. Click to move to ${dockSide === 'left' ? 'right' : 'left'}`}
+          className="p-2 rounded-full hover:bg-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer"
+          aria-label="Move floating sidebar button"
+        >
+          <MoveHorizontal className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Movable Responsive Sidebar Drawer */}
+      <MovableSidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        role={role}
+        currentUser={currentUser}
+        enrolledBoothCodes={userApprovedBoothCodes}
+        activeBoothCode={activeBoothCode}
+        onSelectBooth={setActiveBoothCode}
+        pendingBoothRequestsCount={userPendingBoothRequests.length}
+        pendingPortalRequestsCount={
+          portalRequests.filter((r) => r.status === 'PENDING_HOD_APPROVAL').length
+        }
+        onOpenAddBooth={() => setIsAddBoothModalOpen(true)}
+        onSignOut={() => setIsAuthenticated(false)}
+        onExportJSON={handleExportFullJSON}
+        onSwitchStaffRole={
+          role !== 'STUDENT'
+            ? (targetRole) => {
+                if (targetRole === 'HOD') {
+                  handleQuickSwitchToHOD();
+                } else if (targetRole === 'FACULTY') {
+                  const fac = initialDb.faculty[1];
+                  setRole('FACULTY');
+                  setCurrentUser({
+                    id: fac.faculty_id,
+                    name: fac.name,
+                    email: fac.email,
+                    departmentCode: fac.department_code,
+                  });
+                } else {
+                  setRole('ADMIN');
+                  setCurrentUser({
+                    id: 'ADMIN-REG-001',
+                    name: 'Chief Institute Registrar (Admin)',
+                    email: 'registrar@ushamartin.edu.in',
+                    departmentCode: 'CSE',
+                  });
+                  setActiveTab('HOD_AND_ADMIN');
+                }
+              }
+            : undefined
+        }
+        dockSide={dockSide}
+        onChangeDockSide={setDockSide}
+        isPinnedDesktop={isPinnedDesktop}
+        onTogglePinDesktop={() => setIsPinnedDesktop((p) => !p)}
+      />
+
       {/* Add Booth Modal */}
       <AddBoothModal
         db={initialDb}
@@ -837,7 +960,7 @@ export default function App() {
       />
 
       {/* Main Workspace */}
-      <main className="flex-1 max-w-[1400px] w-full mx-auto px-6 py-8 space-y-8">
+      <main className="flex-1 max-w-[1400px] w-full mx-auto px-3 sm:px-6 py-5 sm:py-8 space-y-6 sm:space-y-8">
         {/* When HOD or ADMIN is logged in, always show the HOD Approval Console at the top or in the HOD_AND_ADMIN tab */}
         {(role === 'HOD' || role === 'ADMIN' || activeTab === 'HOD_AND_ADMIN') && (
           <HODApprovalConsole

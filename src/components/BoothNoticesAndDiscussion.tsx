@@ -153,7 +153,7 @@ export const BoothNoticesAndDiscussion: React.FC<BoothNoticesAndDiscussionProps>
           </p>
         </div>
 
-        <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg shrink-0">
+        <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg overflow-x-auto max-w-full">
           <button
             type="button"
             onClick={() => setSubTab('DISCUSSION_PANEL')}
